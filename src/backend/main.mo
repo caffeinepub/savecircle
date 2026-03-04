@@ -10,10 +10,10 @@ import Map "mo:core/Map";
 import Order "mo:core/Order";
 import AccessControl "authorization/access-control";
 import MixinAuthorization "authorization/MixinAuthorization";
-import Migration "migration";
+
 
 // For system time "now()" (with migration)
-(with migration = Migration.run)
+
 actor {
   type Group = {
     id : Text;

@@ -48,7 +48,7 @@ function GroupCodeBadge({ code }: { code: string }) {
 }
 
 export default function GroupHub() {
-  const { logout, isInitializing } = useAuth();
+  const { logout, isInitializing, principal } = useAuth();
   const { myGroups, isLoading, setActiveGroup, refreshGroups } = useGroup();
   const navigate = useNavigate();
 
@@ -100,8 +100,9 @@ export default function GroupHub() {
 
   function handleSwitchToGroup(group: Group) {
     setActiveGroup(group);
-    // Determine if user is admin of this group
-    navigate({ to: "/member/dashboard" });
+    const isAdmin =
+      principal && group.createdBy.toText() === principal.toText();
+    navigate({ to: isAdmin ? "/admin/dashboard" : "/member/dashboard" });
   }
 
   if (isInitializing || isLoading) {
