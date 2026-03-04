@@ -27,11 +27,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useCurrency } from "@/context/CurrencyContext";
-import {
-  useGroupSettings,
-  useMyContributions,
-  usePayContribution,
-} from "@/hooks/useQueries";
+import { useGroup } from "@/context/GroupContext";
+import { useMyContributions, usePayContribution } from "@/hooks/useQueries";
 import {
   formatCurrency,
   formatDate,
@@ -54,8 +51,10 @@ const YEARS = Array.from(
 );
 
 export default function MemberContributions() {
-  const { data: contributions, isLoading } = useMyContributions();
-  const { data: settings } = useGroupSettings();
+  const { activeGroup } = useGroup();
+  const groupId = activeGroup?.id;
+
+  const { data: contributions, isLoading } = useMyContributions(groupId);
   const payContrib = usePayContribution();
 
   const { currency } = useCurrency();
@@ -71,7 +70,7 @@ export default function MemberContributions() {
   });
 
   function openPay() {
-    setPayAmount(String(settings?.monthlyContribution ?? ""));
+    setPayAmount(String(activeGroup?.monthlyContribution ?? ""));
     setPayOpen(true);
   }
 
@@ -105,6 +104,7 @@ export default function MemberContributions() {
           onClick={openPay}
           className="bg-brand hover:bg-brand-dark text-white"
           data-ocid="member.pay_contribution_button"
+          disabled={!groupId}
         >
           <Receipt className="mr-2 h-4 w-4" />
           Pay Contribution

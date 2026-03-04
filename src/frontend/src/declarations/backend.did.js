@@ -8,33 +8,25 @@
 
 import { IDL } from '@icp-sdk/core/candid';
 
-export const Member = IDL.Record({
-  'id' : IDL.Text,
-  'principal' : IDL.Principal,
-  'joinDate' : IDL.Int,
-  'name' : IDL.Text,
-  'role' : IDL.Text,
-  'isActive' : IDL.Bool,
-  'email' : IDL.Text,
-  'phone' : IDL.Text,
-});
 export const Transaction = IDL.Record({
   'id' : IDL.Text,
-  'memberId' : IDL.Text,
   'transactionType' : IDL.Text,
   'relatedLoanId' : IDL.Opt(IDL.Text),
   'date' : IDL.Int,
+  'memberPrincipal' : IDL.Principal,
   'description' : IDL.Text,
+  'groupId' : IDL.Text,
   'amount' : IDL.Float64,
 });
 export const Contribution = IDL.Record({
   'id' : IDL.Text,
   'status' : IDL.Text,
-  'memberId' : IDL.Text,
   'month' : IDL.Nat,
+  'memberPrincipal' : IDL.Principal,
   'penaltyAmount' : IDL.Float64,
   'year' : IDL.Nat,
   'paidDate' : IDL.Opt(IDL.Int),
+  'groupId' : IDL.Text,
   'amount' : IDL.Float64,
 });
 export const UserRole = IDL.Variant({
@@ -45,21 +37,28 @@ export const UserRole = IDL.Variant({
 export const Loan = IDL.Record({
   'id' : IDL.Text,
   'status' : IDL.Text,
-  'memberId' : IDL.Text,
+  'memberPrincipal' : IDL.Principal,
+  'groupId' : IDL.Text,
   'outstandingBalance' : IDL.Float64,
   'interestRatePercent' : IDL.Float64,
   'principalAmount' : IDL.Float64,
   'startDate' : IDL.Int,
 });
+export const Group = IDL.Record({
+  'id' : IDL.Text,
+  'penaltyRatePercent' : IDL.Float64,
+  'name' : IDL.Text,
+  'createdAt' : IDL.Int,
+  'createdBy' : IDL.Principal,
+  'description' : IDL.Text,
+  'interestRatePercent' : IDL.Float64,
+  'groupCode' : IDL.Text,
+  'monthlyContribution' : IDL.Float64,
+});
 export const UserProfile = IDL.Record({
   'name' : IDL.Text,
   'email' : IDL.Text,
   'phone' : IDL.Text,
-});
-export const GroupSettings = IDL.Record({
-  'penaltyRatePercent' : IDL.Float64,
-  'interestRatePercent' : IDL.Float64,
-  'monthlyContribution' : IDL.Float64,
 });
 export const GroupSummary = IDL.Record({
   'memberCount' : IDL.Nat,
@@ -69,75 +68,101 @@ export const GroupSummary = IDL.Record({
   'activeLoans' : IDL.Nat,
   'monthlyInterestEarned' : IDL.Float64,
 });
+export const GroupMembership = IDL.Record({
+  'memberPrincipal' : IDL.Principal,
+  'joinedAt' : IDL.Int,
+  'isActive' : IDL.Bool,
+  'memberEmail' : IDL.Text,
+  'groupId' : IDL.Text,
+  'memberName' : IDL.Text,
+  'memberPhone' : IDL.Text,
+});
 
 export const idlService = IDL.Service({
   '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
-  'addMember' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [Member], []),
   'adjustRecord' : IDL.Func(
-      [IDL.Text, IDL.Float64, IDL.Text],
+      [IDL.Text, IDL.Text, IDL.Float64, IDL.Text],
       [Transaction],
       [],
     ),
   'applyPenalty' : IDL.Func(
-      [IDL.Text, IDL.Nat, IDL.Nat, IDL.Float64],
+      [IDL.Text, IDL.Principal, IDL.Nat, IDL.Nat, IDL.Float64],
       [Contribution],
       [],
     ),
   'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
-  'closeLoan' : IDL.Func([IDL.Text], [Loan], []),
-  'createLoan' : IDL.Func([IDL.Text, IDL.Float64], [Loan], []),
-  'deleteMember' : IDL.Func([IDL.Text], [IDL.Bool], []),
-  'editMember' : IDL.Func(
-      [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Bool],
-      [Member],
-      [],
-    ),
-  'getAllTransactions' : IDL.Func([], [IDL.Vec(Transaction)], ['query']),
-  'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
-  'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
-  'getGroupSettings' : IDL.Func([], [GroupSettings], ['query']),
-  'getGroupSummary' : IDL.Func([], [GroupSummary], ['query']),
-  'getLoan' : IDL.Func([IDL.Text], [IDL.Opt(Loan)], ['query']),
-  'getMember' : IDL.Func([IDL.Text], [IDL.Opt(Member)], ['query']),
-  'getMemberTransactions' : IDL.Func(
+  'closeLoan' : IDL.Func([IDL.Text, IDL.Text], [Loan], []),
+  'createGroup' : IDL.Func([IDL.Text, IDL.Text], [Group], []),
+  'createLoan' : IDL.Func([IDL.Text, IDL.Principal, IDL.Float64], [Loan], []),
+  'deleteGroup' : IDL.Func([IDL.Text], [IDL.Bool], []),
+  'getAllTransactions' : IDL.Func(
       [IDL.Text],
       [IDL.Vec(Transaction)],
       ['query'],
     ),
-  'getMyContributions' : IDL.Func([], [IDL.Vec(Contribution)], ['query']),
-  'getMyLoans' : IDL.Func([], [IDL.Vec(Loan)], ['query']),
-  'getMyOutstandingBalance' : IDL.Func([], [IDL.Float64], ['query']),
-  'getMyProfile' : IDL.Func([], [IDL.Opt(Member)], ['query']),
-  'getMyTransactions' : IDL.Func([], [IDL.Vec(Transaction)], ['query']),
+  'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
+  'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
+  'getGroup' : IDL.Func([IDL.Text], [IDL.Opt(Group)], ['query']),
+  'getGroupSummary' : IDL.Func([IDL.Text], [GroupSummary], ['query']),
+  'getMyContributions' : IDL.Func(
+      [IDL.Text],
+      [IDL.Vec(Contribution)],
+      ['query'],
+    ),
+  'getMyGroupProfile' : IDL.Func(
+      [IDL.Text],
+      [IDL.Opt(GroupMembership)],
+      ['query'],
+    ),
+  'getMyLoans' : IDL.Func([IDL.Text], [IDL.Vec(Loan)], ['query']),
+  'getMyOutstandingBalance' : IDL.Func([IDL.Text], [IDL.Float64], ['query']),
+  'getMyTransactions' : IDL.Func([IDL.Text], [IDL.Vec(Transaction)], ['query']),
   'getUserProfile' : IDL.Func(
       [IDL.Principal],
       [IDL.Opt(UserProfile)],
       ['query'],
     ),
   'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
-  'listLoans' : IDL.Func([], [IDL.Vec(Loan)], ['query']),
-  'listMembers' : IDL.Func([], [IDL.Vec(Member)], ['query']),
-  'payContribution' : IDL.Func(
-      [IDL.Float64, IDL.Nat, IDL.Nat],
-      [Contribution],
-      [],
+  'joinGroup' : IDL.Func([IDL.Text], [Group], []),
+  'leaveGroup' : IDL.Func([IDL.Text], [IDL.Bool], []),
+  'listGroupMembers' : IDL.Func(
+      [IDL.Text],
+      [IDL.Vec(GroupMembership)],
+      ['query'],
     ),
-  'payLoanInterest' : IDL.Func([IDL.Text, IDL.Float64], [Transaction], []),
-  'recordContribution' : IDL.Func(
+  'listLoans' : IDL.Func([IDL.Text], [IDL.Vec(Loan)], ['query']),
+  'listMyGroups' : IDL.Func([], [IDL.Vec(Group)], ['query']),
+  'payContribution' : IDL.Func(
       [IDL.Text, IDL.Float64, IDL.Nat, IDL.Nat],
       [Contribution],
       [],
     ),
-  'repayPrincipal' : IDL.Func([IDL.Text, IDL.Float64], [Loan], []),
+  'payLoanInterest' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Float64],
+      [Transaction],
+      [],
+    ),
+  'recordContribution' : IDL.Func(
+      [IDL.Text, IDL.Principal, IDL.Float64, IDL.Nat, IDL.Nat],
+      [Contribution],
+      [],
+    ),
+  'removeMember' : IDL.Func([IDL.Text, IDL.Principal], [IDL.Bool], []),
+  'repayPrincipal' : IDL.Func([IDL.Text, IDL.Text, IDL.Float64], [Loan], []),
   'runMonthlyInterestCalculation' : IDL.Func(
-      [IDL.Nat, IDL.Nat],
+      [IDL.Text, IDL.Nat, IDL.Nat],
       [IDL.Vec(Transaction)],
       [],
     ),
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
   'updateGroupSettings' : IDL.Func(
-      [IDL.Float64, IDL.Float64, IDL.Float64],
-      [GroupSettings],
+      [IDL.Text, IDL.Float64, IDL.Float64, IDL.Float64],
+      [Group],
+      [],
+    ),
+  'updateMemberStatus' : IDL.Func(
+      [IDL.Text, IDL.Principal, IDL.Bool],
+      [GroupMembership],
       [],
     ),
 });
@@ -145,33 +170,25 @@ export const idlService = IDL.Service({
 export const idlInitArgs = [];
 
 export const idlFactory = ({ IDL }) => {
-  const Member = IDL.Record({
-    'id' : IDL.Text,
-    'principal' : IDL.Principal,
-    'joinDate' : IDL.Int,
-    'name' : IDL.Text,
-    'role' : IDL.Text,
-    'isActive' : IDL.Bool,
-    'email' : IDL.Text,
-    'phone' : IDL.Text,
-  });
   const Transaction = IDL.Record({
     'id' : IDL.Text,
-    'memberId' : IDL.Text,
     'transactionType' : IDL.Text,
     'relatedLoanId' : IDL.Opt(IDL.Text),
     'date' : IDL.Int,
+    'memberPrincipal' : IDL.Principal,
     'description' : IDL.Text,
+    'groupId' : IDL.Text,
     'amount' : IDL.Float64,
   });
   const Contribution = IDL.Record({
     'id' : IDL.Text,
     'status' : IDL.Text,
-    'memberId' : IDL.Text,
     'month' : IDL.Nat,
+    'memberPrincipal' : IDL.Principal,
     'penaltyAmount' : IDL.Float64,
     'year' : IDL.Nat,
     'paidDate' : IDL.Opt(IDL.Int),
+    'groupId' : IDL.Text,
     'amount' : IDL.Float64,
   });
   const UserRole = IDL.Variant({
@@ -182,21 +199,28 @@ export const idlFactory = ({ IDL }) => {
   const Loan = IDL.Record({
     'id' : IDL.Text,
     'status' : IDL.Text,
-    'memberId' : IDL.Text,
+    'memberPrincipal' : IDL.Principal,
+    'groupId' : IDL.Text,
     'outstandingBalance' : IDL.Float64,
     'interestRatePercent' : IDL.Float64,
     'principalAmount' : IDL.Float64,
     'startDate' : IDL.Int,
   });
+  const Group = IDL.Record({
+    'id' : IDL.Text,
+    'penaltyRatePercent' : IDL.Float64,
+    'name' : IDL.Text,
+    'createdAt' : IDL.Int,
+    'createdBy' : IDL.Principal,
+    'description' : IDL.Text,
+    'interestRatePercent' : IDL.Float64,
+    'groupCode' : IDL.Text,
+    'monthlyContribution' : IDL.Float64,
+  });
   const UserProfile = IDL.Record({
     'name' : IDL.Text,
     'email' : IDL.Text,
     'phone' : IDL.Text,
-  });
-  const GroupSettings = IDL.Record({
-    'penaltyRatePercent' : IDL.Float64,
-    'interestRatePercent' : IDL.Float64,
-    'monthlyContribution' : IDL.Float64,
   });
   const GroupSummary = IDL.Record({
     'memberCount' : IDL.Nat,
@@ -206,75 +230,105 @@ export const idlFactory = ({ IDL }) => {
     'activeLoans' : IDL.Nat,
     'monthlyInterestEarned' : IDL.Float64,
   });
+  const GroupMembership = IDL.Record({
+    'memberPrincipal' : IDL.Principal,
+    'joinedAt' : IDL.Int,
+    'isActive' : IDL.Bool,
+    'memberEmail' : IDL.Text,
+    'groupId' : IDL.Text,
+    'memberName' : IDL.Text,
+    'memberPhone' : IDL.Text,
+  });
   
   return IDL.Service({
     '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
-    'addMember' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [Member], []),
     'adjustRecord' : IDL.Func(
-        [IDL.Text, IDL.Float64, IDL.Text],
+        [IDL.Text, IDL.Text, IDL.Float64, IDL.Text],
         [Transaction],
         [],
       ),
     'applyPenalty' : IDL.Func(
-        [IDL.Text, IDL.Nat, IDL.Nat, IDL.Float64],
+        [IDL.Text, IDL.Principal, IDL.Nat, IDL.Nat, IDL.Float64],
         [Contribution],
         [],
       ),
     'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
-    'closeLoan' : IDL.Func([IDL.Text], [Loan], []),
-    'createLoan' : IDL.Func([IDL.Text, IDL.Float64], [Loan], []),
-    'deleteMember' : IDL.Func([IDL.Text], [IDL.Bool], []),
-    'editMember' : IDL.Func(
-        [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Bool],
-        [Member],
-        [],
-      ),
-    'getAllTransactions' : IDL.Func([], [IDL.Vec(Transaction)], ['query']),
-    'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
-    'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
-    'getGroupSettings' : IDL.Func([], [GroupSettings], ['query']),
-    'getGroupSummary' : IDL.Func([], [GroupSummary], ['query']),
-    'getLoan' : IDL.Func([IDL.Text], [IDL.Opt(Loan)], ['query']),
-    'getMember' : IDL.Func([IDL.Text], [IDL.Opt(Member)], ['query']),
-    'getMemberTransactions' : IDL.Func(
+    'closeLoan' : IDL.Func([IDL.Text, IDL.Text], [Loan], []),
+    'createGroup' : IDL.Func([IDL.Text, IDL.Text], [Group], []),
+    'createLoan' : IDL.Func([IDL.Text, IDL.Principal, IDL.Float64], [Loan], []),
+    'deleteGroup' : IDL.Func([IDL.Text], [IDL.Bool], []),
+    'getAllTransactions' : IDL.Func(
         [IDL.Text],
         [IDL.Vec(Transaction)],
         ['query'],
       ),
-    'getMyContributions' : IDL.Func([], [IDL.Vec(Contribution)], ['query']),
-    'getMyLoans' : IDL.Func([], [IDL.Vec(Loan)], ['query']),
-    'getMyOutstandingBalance' : IDL.Func([], [IDL.Float64], ['query']),
-    'getMyProfile' : IDL.Func([], [IDL.Opt(Member)], ['query']),
-    'getMyTransactions' : IDL.Func([], [IDL.Vec(Transaction)], ['query']),
+    'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
+    'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
+    'getGroup' : IDL.Func([IDL.Text], [IDL.Opt(Group)], ['query']),
+    'getGroupSummary' : IDL.Func([IDL.Text], [GroupSummary], ['query']),
+    'getMyContributions' : IDL.Func(
+        [IDL.Text],
+        [IDL.Vec(Contribution)],
+        ['query'],
+      ),
+    'getMyGroupProfile' : IDL.Func(
+        [IDL.Text],
+        [IDL.Opt(GroupMembership)],
+        ['query'],
+      ),
+    'getMyLoans' : IDL.Func([IDL.Text], [IDL.Vec(Loan)], ['query']),
+    'getMyOutstandingBalance' : IDL.Func([IDL.Text], [IDL.Float64], ['query']),
+    'getMyTransactions' : IDL.Func(
+        [IDL.Text],
+        [IDL.Vec(Transaction)],
+        ['query'],
+      ),
     'getUserProfile' : IDL.Func(
         [IDL.Principal],
         [IDL.Opt(UserProfile)],
         ['query'],
       ),
     'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
-    'listLoans' : IDL.Func([], [IDL.Vec(Loan)], ['query']),
-    'listMembers' : IDL.Func([], [IDL.Vec(Member)], ['query']),
-    'payContribution' : IDL.Func(
-        [IDL.Float64, IDL.Nat, IDL.Nat],
-        [Contribution],
-        [],
+    'joinGroup' : IDL.Func([IDL.Text], [Group], []),
+    'leaveGroup' : IDL.Func([IDL.Text], [IDL.Bool], []),
+    'listGroupMembers' : IDL.Func(
+        [IDL.Text],
+        [IDL.Vec(GroupMembership)],
+        ['query'],
       ),
-    'payLoanInterest' : IDL.Func([IDL.Text, IDL.Float64], [Transaction], []),
-    'recordContribution' : IDL.Func(
+    'listLoans' : IDL.Func([IDL.Text], [IDL.Vec(Loan)], ['query']),
+    'listMyGroups' : IDL.Func([], [IDL.Vec(Group)], ['query']),
+    'payContribution' : IDL.Func(
         [IDL.Text, IDL.Float64, IDL.Nat, IDL.Nat],
         [Contribution],
         [],
       ),
-    'repayPrincipal' : IDL.Func([IDL.Text, IDL.Float64], [Loan], []),
+    'payLoanInterest' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Float64],
+        [Transaction],
+        [],
+      ),
+    'recordContribution' : IDL.Func(
+        [IDL.Text, IDL.Principal, IDL.Float64, IDL.Nat, IDL.Nat],
+        [Contribution],
+        [],
+      ),
+    'removeMember' : IDL.Func([IDL.Text, IDL.Principal], [IDL.Bool], []),
+    'repayPrincipal' : IDL.Func([IDL.Text, IDL.Text, IDL.Float64], [Loan], []),
     'runMonthlyInterestCalculation' : IDL.Func(
-        [IDL.Nat, IDL.Nat],
+        [IDL.Text, IDL.Nat, IDL.Nat],
         [IDL.Vec(Transaction)],
         [],
       ),
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
     'updateGroupSettings' : IDL.Func(
-        [IDL.Float64, IDL.Float64, IDL.Float64],
-        [GroupSettings],
+        [IDL.Text, IDL.Float64, IDL.Float64, IDL.Float64],
+        [Group],
+        [],
+      ),
+    'updateMemberStatus' : IDL.Func(
+        [IDL.Text, IDL.Principal, IDL.Bool],
+        [GroupMembership],
         [],
       ),
   });

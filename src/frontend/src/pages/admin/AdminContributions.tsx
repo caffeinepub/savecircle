@@ -1,4 +1,4 @@
-import type { Member } from "@/backend.d";
+import type { GroupMembership } from "@/backend.d";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -27,10 +27,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useCurrency } from "@/context/CurrencyContext";
+import { useGroup } from "@/context/GroupContext";
 import {
   useApplyPenalty,
-  useGroupSettings,
-  useMembers,
+  useGroupMembers,
   useRecordContribution,
 } from "@/hooks/useQueries";
 import {
@@ -38,6 +38,7 @@ import {
   getCurrentMonthYear,
   getMonthName,
 } from "@/utils/format";
+import { Principal } from "@icp-sdk/core/principal";
 import { AlertTriangle, Loader2, Receipt } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
@@ -53,8 +54,10 @@ const YEARS = Array.from(
 );
 
 export default function AdminContributions() {
-  const { data: members, isLoading: membersLoading } = useMembers();
-  const { data: settings } = useGroupSettings();
+  const { activeGroup } = useGroup();
+  const groupId = activeGroup?.id;
+
+  const { data: members, isLoading: membersLoading } = useGroupMembers(groupId);
   const recordContrib = useRecordContribution();
   const applyPenalty = useApplyPenalty();
 
@@ -65,19 +68,21 @@ export default function AdminContributions() {
 
   const [recordOpen, setRecordOpen] = useState(false);
   const [penaltyOpen, setPenaltyOpen] = useState(false);
-  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [selectedMember, setSelectedMember] = useState<GroupMembership | null>(
+    null,
+  );
   const [amount, setAmount] = useState("");
   const [penaltyAmount, setPenaltyAmount] = useState("");
 
-  const defaultAmount = settings?.monthlyContribution ?? 0;
+  const defaultAmount = activeGroup?.monthlyContribution ?? 0;
 
-  function openRecord(member: Member) {
+  function openRecord(member: GroupMembership) {
     setSelectedMember(member);
     setAmount(String(defaultAmount));
     setRecordOpen(true);
   }
 
-  function openPenalty(member: Member) {
+  function openPenalty(member: GroupMembership) {
     setSelectedMember(member);
     setPenaltyAmount("");
     setPenaltyOpen(true);
@@ -92,12 +97,14 @@ export default function AdminContributions() {
     }
     try {
       await recordContrib.mutateAsync({
-        memberId: selectedMember.id,
+        memberPrincipal: selectedMember.memberPrincipal,
         amount: amt,
         month: filterMonth,
         year: filterYear,
       });
-      toast.success(`Contribution recorded for ${selectedMember.name}.`);
+      toast.success(
+        `Contribution recorded for ${selectedMember.memberName || "member"}.`,
+      );
       setRecordOpen(false);
     } catch {
       toast.error("Failed to record contribution.");
@@ -113,12 +120,14 @@ export default function AdminContributions() {
     }
     try {
       await applyPenalty.mutateAsync({
-        memberId: selectedMember.id,
+        memberPrincipal: selectedMember.memberPrincipal,
         month: filterMonth,
         year: filterYear,
         penaltyAmount: amt,
       });
-      toast.success(`Penalty applied to ${selectedMember.name}.`);
+      toast.success(
+        `Penalty applied to ${selectedMember.memberName || "member"}.`,
+      );
       setPenaltyOpen(false);
     } catch {
       toast.error("Failed to apply penalty.");
@@ -170,13 +179,13 @@ export default function AdminContributions() {
         </div>
       </div>
 
-      {settings && (
+      {activeGroup && (
         <div className="rounded-lg border border-border bg-brand-subtle p-4 flex items-center gap-3">
           <Receipt className="h-4 w-4 text-brand shrink-0" />
           <p className="text-sm text-muted-foreground">
             Monthly contribution:{" "}
             <span className="font-semibold text-foreground">
-              {formatCurrency(settings.monthlyContribution, currency)}
+              {formatCurrency(activeGroup.monthlyContribution, currency)}
             </span>{" "}
             per member
           </p>
@@ -206,6 +215,9 @@ export default function AdminContributions() {
             <p className="font-medium text-muted-foreground">
               No members found
             </p>
+            <p className="text-sm text-muted-foreground/60 mt-1">
+              Share the group code to add members
+            </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -231,28 +243,30 @@ export default function AdminContributions() {
                   .filter((m) => m.isActive)
                   .map((member, i) => (
                     <TableRow
-                      key={member.id}
+                      key={member.memberPrincipal.toText()}
                       data-ocid={`contributions.item.${i + 1}`}
                       className="hover:bg-muted/30 border-border"
                     >
                       <TableCell className="pl-5 py-4">
                         <div className="flex items-center gap-3">
                           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-subtle text-xs font-bold text-brand">
-                            {member.name.slice(0, 2).toUpperCase()}
+                            {(member.memberName || "?")
+                              .slice(0, 2)
+                              .toUpperCase()}
                           </div>
                           <div>
                             <p className="text-sm font-medium text-foreground">
-                              {member.name}
+                              {member.memberName || "—"}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              {member.email}
+                              {member.memberEmail || "—"}
                             </p>
                           </div>
                         </div>
                       </TableCell>
                       <TableCell className="text-sm font-semibold text-foreground">
                         {formatCurrency(
-                          settings?.monthlyContribution ?? 0,
+                          activeGroup?.monthlyContribution ?? 0,
                           currency,
                         )}
                       </TableCell>
@@ -265,7 +279,7 @@ export default function AdminContributions() {
                             variant="outline"
                             size="sm"
                             onClick={() => openRecord(member)}
-                            data-ocid="contribution.record_button"
+                            data-ocid={`contributions.record.button.${i + 1}`}
                             className="h-7 text-xs border-brand/30 text-brand hover:bg-brand hover:text-white"
                           >
                             <Receipt className="mr-1 h-3 w-3" />
@@ -275,7 +289,7 @@ export default function AdminContributions() {
                             variant="outline"
                             size="sm"
                             onClick={() => openPenalty(member)}
-                            data-ocid="contribution.penalty_button"
+                            data-ocid={`contributions.penalty.button.${i + 1}`}
                             className="h-7 text-xs border-destructive/30 text-destructive hover:bg-destructive hover:text-white"
                           >
                             <AlertTriangle className="mr-1 h-3 w-3" />
@@ -299,8 +313,9 @@ export default function AdminContributions() {
               Record Contribution
             </DialogTitle>
             <DialogDescription>
-              Recording contribution for <strong>{selectedMember?.name}</strong>{" "}
-              — {getMonthName(filterMonth)} {filterYear}
+              Recording contribution for{" "}
+              <strong>{selectedMember?.memberName || "member"}</strong> —{" "}
+              {getMonthName(filterMonth)} {filterYear}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
@@ -346,7 +361,7 @@ export default function AdminContributions() {
             <DialogTitle className="font-display">Apply Penalty</DialogTitle>
             <DialogDescription>
               Apply a late payment penalty to{" "}
-              <strong>{selectedMember?.name}</strong> for{" "}
+              <strong>{selectedMember?.memberName || "member"}</strong> for{" "}
               {getMonthName(filterMonth)} {filterYear}
             </DialogDescription>
           </DialogHeader>

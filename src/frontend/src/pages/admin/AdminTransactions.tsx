@@ -17,7 +17,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useCurrency } from "@/context/CurrencyContext";
-import { useAllTransactions, useMembers } from "@/hooks/useQueries";
+import { useGroup } from "@/context/GroupContext";
+import { useAllTransactions, useGroupMembers } from "@/hooks/useQueries";
 import { formatCurrency, formatDate } from "@/utils/format";
 import { ListChecks, Search } from "lucide-react";
 import { motion } from "motion/react";
@@ -32,20 +33,28 @@ const TYPE_OPTIONS = [
 ];
 
 export default function AdminTransactions() {
-  const { data: transactions, isLoading } = useAllTransactions();
-  const { data: members } = useMembers();
+  const { activeGroup } = useGroup();
+  const groupId = activeGroup?.id;
+
+  const { data: transactions, isLoading } = useAllTransactions(groupId);
+  const { data: members } = useGroupMembers(groupId);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [memberFilter, setMemberFilter] = useState("all");
 
   const { currency } = useCurrency();
-  const memberMap = Object.fromEntries(
-    (members ?? []).map((m) => [m.id, m.name]),
+
+  // Build name map by principal string
+  const memberNameMap = Object.fromEntries(
+    (members ?? []).map((m) => [
+      m.memberPrincipal.toText(),
+      m.memberName || `${m.memberPrincipal.toText().slice(0, 10)}...`,
+    ]),
   );
 
   const filtered = (transactions ?? [])
     .filter((t) => {
-      const memberName = memberMap[t.memberId] ?? "";
+      const memberName = memberNameMap[t.memberPrincipal.toText()] ?? "";
       const matchSearch =
         memberName.toLowerCase().includes(search.toLowerCase()) ||
         t.description.toLowerCase().includes(search.toLowerCase()) ||
@@ -53,13 +62,11 @@ export default function AdminTransactions() {
       const matchType =
         typeFilter === "all" ||
         t.transactionType.toLowerCase().includes(typeFilter);
-      const matchMember = memberFilter === "all" || t.memberId === memberFilter;
+      const matchMember =
+        memberFilter === "all" || t.memberPrincipal.toText() === memberFilter;
       return matchSearch && matchType && matchMember;
     })
-    .sort((a, b) => {
-      // Sort by date descending
-      return Number(b.date - a.date);
-    });
+    .sort((a, b) => Number(b.date - a.date));
 
   return (
     <div className="space-y-6">
@@ -103,8 +110,12 @@ export default function AdminTransactions() {
           <SelectContent>
             <SelectItem value="all">All Members</SelectItem>
             {(members ?? []).map((m) => (
-              <SelectItem key={m.id} value={m.id}>
-                {m.name}
+              <SelectItem
+                key={m.memberPrincipal.toText()}
+                value={m.memberPrincipal.toText()}
+              >
+                {m.memberName ||
+                  `${m.memberPrincipal.toText().slice(0, 16)}...`}
               </SelectItem>
             ))}
           </SelectContent>
@@ -170,7 +181,7 @@ export default function AdminTransactions() {
                       {formatDate(tx.date)}
                     </TableCell>
                     <TableCell className="text-sm font-medium text-foreground">
-                      {memberMap[tx.memberId] ?? "Unknown"}
+                      {memberNameMap[tx.memberPrincipal.toText()] ?? "Unknown"}
                     </TableCell>
                     <TableCell>
                       <StatusBadge status={tx.transactionType} />

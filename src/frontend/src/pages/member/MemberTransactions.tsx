@@ -17,6 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useCurrency } from "@/context/CurrencyContext";
+import { useGroup } from "@/context/GroupContext";
 import { useMyTransactions } from "@/hooks/useQueries";
 import { formatCurrency, formatDate } from "@/utils/format";
 import { ListChecks, Search } from "lucide-react";
@@ -32,7 +33,10 @@ const TYPE_OPTIONS = [
 ];
 
 export default function MemberTransactions() {
-  const { data: transactions, isLoading } = useMyTransactions();
+  const { activeGroup } = useGroup();
+  const groupId = activeGroup?.id;
+
+  const { data: transactions, isLoading } = useMyTransactions(groupId);
   const { currency } = useCurrency();
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");

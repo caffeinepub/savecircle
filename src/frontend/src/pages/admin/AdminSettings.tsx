@@ -15,9 +15,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useCurrency } from "@/context/CurrencyContext";
-import { useGroupSettings, useUpdateGroupSettings } from "@/hooks/useQueries";
+import { useGroup } from "@/context/GroupContext";
+import { useUpdateGroupSettings } from "@/hooks/useQueries";
 import { CURRENCIES } from "@/utils/currencies";
 import { formatCurrency, formatPercent } from "@/utils/format";
 import { Globe, Loader2, Save, Settings } from "lucide-react";
@@ -26,7 +26,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 export default function AdminSettings() {
-  const { data: settings, isLoading } = useGroupSettings();
+  const { activeGroup, refreshGroups } = useGroup();
   const updateSettings = useUpdateGroupSettings();
   const { currency, setCurrency } = useCurrency();
 
@@ -35,12 +35,12 @@ export default function AdminSettings() {
   const [penaltyRate, setPenaltyRate] = useState("");
 
   useEffect(() => {
-    if (settings) {
-      setMonthlyContribution(String(settings.monthlyContribution));
-      setInterestRate(String(settings.interestRatePercent));
-      setPenaltyRate(String(settings.penaltyRatePercent));
+    if (activeGroup) {
+      setMonthlyContribution(String(activeGroup.monthlyContribution));
+      setInterestRate(String(activeGroup.interestRatePercent));
+      setPenaltyRate(String(activeGroup.penaltyRatePercent));
     }
-  }, [settings]);
+  }, [activeGroup]);
 
   async function handleSave() {
     const contrib = Number.parseFloat(monthlyContribution);
@@ -70,6 +70,7 @@ export default function AdminSettings() {
         interestRatePercent: interest,
         penaltyRatePercent: penalty,
       });
+      refreshGroups();
       toast.success("Settings saved successfully.");
     } catch {
       toast.error("Failed to save settings.");
@@ -83,7 +84,8 @@ export default function AdminSettings() {
           Settings
         </h1>
         <p className="text-sm text-muted-foreground">
-          Configure group-wide financial parameters
+          Configure financial parameters for{" "}
+          <strong>{activeGroup?.name ?? "this group"}</strong>
         </p>
       </div>
 
@@ -124,7 +126,7 @@ export default function AdminSettings() {
                 <SelectTrigger
                   id="currency-select"
                   className="w-full sm:w-72"
-                  data-ocid="settings.currency_select"
+                  data-ocid="settings.select"
                 >
                   <SelectValue />
                 </SelectTrigger>
@@ -166,12 +168,10 @@ export default function AdminSettings() {
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
-            {isLoading ? (
-              <div className="space-y-4" data-ocid="settings.loading_state">
-                <Skeleton className="h-16 w-full" />
-                <Skeleton className="h-16 w-full" />
-                <Skeleton className="h-16 w-full" />
-              </div>
+            {!activeGroup ? (
+              <p className="text-sm text-muted-foreground">
+                No active group selected.
+              </p>
             ) : (
               <>
                 <div className="space-y-2">
@@ -257,42 +257,40 @@ export default function AdminSettings() {
                   </p>
                 </div>
 
-                {settings && (
-                  <div className="rounded-lg border border-border bg-muted/40 p-4">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
-                      Current Values
-                    </p>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div>
-                        <p className="text-xs text-muted-foreground">
-                          Contribution
-                        </p>
-                        <p className="mt-0.5 text-sm font-semibold text-foreground">
-                          {formatCurrency(
-                            settings.monthlyContribution,
-                            currency,
-                          )}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">
-                          Interest Rate
-                        </p>
-                        <p className="mt-0.5 text-sm font-semibold text-foreground">
-                          {formatPercent(settings.interestRatePercent)}/mo
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">
-                          Penalty Rate
-                        </p>
-                        <p className="mt-0.5 text-sm font-semibold text-foreground">
-                          {formatPercent(settings.penaltyRatePercent)}
-                        </p>
-                      </div>
+                <div className="rounded-lg border border-border bg-muted/40 p-4">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
+                    Current Values
+                  </p>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <p className="text-xs text-muted-foreground">
+                        Contribution
+                      </p>
+                      <p className="mt-0.5 text-sm font-semibold text-foreground">
+                        {formatCurrency(
+                          activeGroup.monthlyContribution,
+                          currency,
+                        )}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">
+                        Interest Rate
+                      </p>
+                      <p className="mt-0.5 text-sm font-semibold text-foreground">
+                        {formatPercent(activeGroup.interestRatePercent)}/mo
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">
+                        Penalty Rate
+                      </p>
+                      <p className="mt-0.5 text-sm font-semibold text-foreground">
+                        {formatPercent(activeGroup.penaltyRatePercent)}
+                      </p>
                     </div>
                   </div>
-                )}
+                </div>
 
                 <Button
                   onClick={handleSave}

@@ -1,8 +1,12 @@
-import { useAuth, useIsAdmin } from "@/auth";
+import { useAuth } from "@/auth";
 import { Toaster } from "@/components/ui/sonner";
+import { CurrencyProvider } from "@/context/CurrencyContext";
+import { GroupProvider, useGroup } from "@/context/GroupContext";
+import GroupHub from "@/pages/GroupHub";
 import LandingPage from "@/pages/LandingPage";
 import AdminContributions from "@/pages/admin/AdminContributions";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
+import AdminGroups from "@/pages/admin/AdminGroups";
 import AdminLayout from "@/pages/admin/AdminLayout";
 import AdminLoans from "@/pages/admin/AdminLoans";
 import AdminMembers from "@/pages/admin/AdminMembers";
@@ -21,6 +25,8 @@ import {
   createRouter,
   useNavigate,
 } from "@tanstack/react-router";
+import { Loader2 } from "lucide-react";
+import { useEffect } from "react";
 
 // Root
 const rootRoute = createRootRoute({
@@ -39,6 +45,36 @@ const indexRoute = createRoute({
   component: LandingPage,
 });
 
+// Group Hub (post-login group selection/creation)
+const groupHubRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/group-hub",
+  component: GroupHubWrapper,
+});
+
+function GroupHubWrapper() {
+  const { isAuthenticated, isInitializing } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isInitializing && !isAuthenticated) {
+      navigate({ to: "/" });
+    }
+  }, [isAuthenticated, isInitializing, navigate]);
+
+  if (isInitializing) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-brand" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) return null;
+
+  return <GroupHub />;
+}
+
 // Admin Layout route
 const adminLayoutRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -47,18 +83,32 @@ const adminLayoutRoute = createRoute({
 });
 
 function AdminLayoutWrapper() {
-  const { isAuthenticated } = useAuth();
-  const isAdmin = useIsAdmin();
+  const { isAuthenticated, isInitializing } = useAuth();
+  const { myGroups, isLoading } = useGroup();
   const navigate = useNavigate();
 
-  if (!isAuthenticated) {
-    navigate({ to: "/" });
-    return null;
+  useEffect(() => {
+    if (isInitializing || isLoading) return;
+    if (!isAuthenticated) {
+      navigate({ to: "/" });
+      return;
+    }
+    if (!isLoading && myGroups.length === 0) {
+      navigate({ to: "/group-hub" });
+    }
+  }, [isAuthenticated, isInitializing, isLoading, myGroups, navigate]);
+
+  if (isInitializing || isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-brand" />
+      </div>
+    );
   }
-  if (!isAdmin) {
-    navigate({ to: "/member/dashboard" });
-    return null;
-  }
+
+  if (!isAuthenticated) return null;
+  if (myGroups.length === 0) return null;
+
   return <AdminLayout />;
 }
 
@@ -104,6 +154,12 @@ const adminSettingsRoute = createRoute({
   component: AdminSettings,
 });
 
+const adminGroupsRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/groups",
+  component: AdminGroups,
+});
+
 // Member Layout route
 const memberLayoutRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -112,13 +168,32 @@ const memberLayoutRoute = createRoute({
 });
 
 function MemberLayoutWrapper() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isInitializing } = useAuth();
+  const { myGroups, isLoading } = useGroup();
   const navigate = useNavigate();
 
-  if (!isAuthenticated) {
-    navigate({ to: "/" });
-    return null;
+  useEffect(() => {
+    if (isInitializing || isLoading) return;
+    if (!isAuthenticated) {
+      navigate({ to: "/" });
+      return;
+    }
+    if (!isLoading && myGroups.length === 0) {
+      navigate({ to: "/group-hub" });
+    }
+  }, [isAuthenticated, isInitializing, isLoading, myGroups, navigate]);
+
+  if (isInitializing || isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-brand" />
+      </div>
+    );
   }
+
+  if (!isAuthenticated) return null;
+  if (myGroups.length === 0) return null;
+
   return <MemberLayout />;
 }
 
@@ -155,6 +230,7 @@ const memberTransactionsRoute = createRoute({
 // Router
 const routeTree = rootRoute.addChildren([
   indexRoute,
+  groupHubRoute,
   adminLayoutRoute.addChildren([
     adminIndexRoute,
     adminDashboardRoute,
@@ -163,6 +239,7 @@ const routeTree = rootRoute.addChildren([
     adminContributionsRoute,
     adminTransactionsRoute,
     adminSettingsRoute,
+    adminGroupsRoute,
   ]),
   memberLayoutRoute.addChildren([
     memberIndexRoute,
@@ -181,6 +258,16 @@ declare module "@tanstack/react-router" {
   }
 }
 
+function AppProviders() {
+  return (
+    <CurrencyProvider>
+      <GroupProvider>
+        <RouterProvider router={router} />
+      </GroupProvider>
+    </CurrencyProvider>
+  );
+}
+
 export default function App() {
-  return <RouterProvider router={router} />;
+  return <AppProviders />;
 }

@@ -97,38 +97,45 @@ export interface GroupSummary {
     activeLoans: bigint;
     monthlyInterestEarned: number;
 }
-export interface Member {
-    id: string;
-    principal: Principal;
-    joinDate: bigint;
-    name: string;
-    role: string;
+export interface GroupMembership {
+    memberPrincipal: Principal;
+    joinedAt: bigint;
     isActive: boolean;
-    email: string;
-    phone: string;
+    memberEmail: string;
+    groupId: string;
+    memberName: string;
+    memberPhone: string;
 }
 export interface Loan {
     id: string;
     status: string;
-    memberId: string;
+    memberPrincipal: Principal;
+    groupId: string;
     outstandingBalance: number;
     interestRatePercent: number;
     principalAmount: number;
     startDate: bigint;
 }
-export interface GroupSettings {
+export interface Group {
+    id: string;
     penaltyRatePercent: number;
+    name: string;
+    createdAt: bigint;
+    createdBy: Principal;
+    description: string;
     interestRatePercent: number;
+    groupCode: string;
     monthlyContribution: number;
 }
 export interface Contribution {
     id: string;
     status: string;
-    memberId: string;
     month: bigint;
+    memberPrincipal: Principal;
     penaltyAmount: number;
     year: bigint;
     paidDate?: bigint;
+    groupId: string;
     amount: number;
 }
 export interface UserProfile {
@@ -138,11 +145,12 @@ export interface UserProfile {
 }
 export interface Transaction {
     id: string;
-    memberId: string;
     transactionType: string;
     relatedLoanId?: string;
     date: bigint;
+    memberPrincipal: Principal;
     description: string;
+    groupId: string;
     amount: number;
 }
 export enum UserRole {
@@ -152,40 +160,41 @@ export enum UserRole {
 }
 export interface backendInterface {
     _initializeAccessControlWithSecret(userSecret: string): Promise<void>;
-    addMember(name: string, email: string, phone: string): Promise<Member>;
-    adjustRecord(transactionId: string, newAmount: number, description: string): Promise<Transaction>;
-    applyPenalty(memberId: string, month: bigint, year: bigint, penaltyAmount: number): Promise<Contribution>;
+    adjustRecord(groupId: string, transactionId: string, newAmount: number, description: string): Promise<Transaction>;
+    applyPenalty(groupId: string, memberPrincipal: Principal, month: bigint, year: bigint, penaltyAmount: number): Promise<Contribution>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
-    closeLoan(loanId: string): Promise<Loan>;
-    createLoan(memberId: string, principalAmount: number): Promise<Loan>;
-    deleteMember(id: string): Promise<boolean>;
-    editMember(id: string, name: string, email: string, phone: string, isActive: boolean): Promise<Member>;
-    getAllTransactions(): Promise<Array<Transaction>>;
+    closeLoan(groupId: string, loanId: string): Promise<Loan>;
+    createGroup(name: string, description: string): Promise<Group>;
+    createLoan(groupId: string, memberPrincipal: Principal, principalAmount: number): Promise<Loan>;
+    deleteGroup(groupId: string): Promise<boolean>;
+    getAllTransactions(groupId: string): Promise<Array<Transaction>>;
     getCallerUserProfile(): Promise<UserProfile | null>;
     getCallerUserRole(): Promise<UserRole>;
-    getGroupSettings(): Promise<GroupSettings>;
-    getGroupSummary(): Promise<GroupSummary>;
-    getLoan(id: string): Promise<Loan | null>;
-    getMember(id: string): Promise<Member | null>;
-    getMemberTransactions(memberId: string): Promise<Array<Transaction>>;
-    getMyContributions(): Promise<Array<Contribution>>;
-    getMyLoans(): Promise<Array<Loan>>;
-    getMyOutstandingBalance(): Promise<number>;
-    getMyProfile(): Promise<Member | null>;
-    getMyTransactions(): Promise<Array<Transaction>>;
+    getGroup(groupId: string): Promise<Group | null>;
+    getGroupSummary(groupId: string): Promise<GroupSummary>;
+    getMyContributions(groupId: string): Promise<Array<Contribution>>;
+    getMyGroupProfile(groupId: string): Promise<GroupMembership | null>;
+    getMyLoans(groupId: string): Promise<Array<Loan>>;
+    getMyOutstandingBalance(groupId: string): Promise<number>;
+    getMyTransactions(groupId: string): Promise<Array<Transaction>>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
     isCallerAdmin(): Promise<boolean>;
-    listLoans(): Promise<Array<Loan>>;
-    listMembers(): Promise<Array<Member>>;
-    payContribution(amount: number, month: bigint, year: bigint): Promise<Contribution>;
-    payLoanInterest(loanId: string, amount: number): Promise<Transaction>;
-    recordContribution(memberId: string, amount: number, month: bigint, year: bigint): Promise<Contribution>;
-    repayPrincipal(loanId: string, amount: number): Promise<Loan>;
-    runMonthlyInterestCalculation(month: bigint, year: bigint): Promise<Array<Transaction>>;
+    joinGroup(groupCode: string): Promise<Group>;
+    leaveGroup(groupId: string): Promise<boolean>;
+    listGroupMembers(groupId: string): Promise<Array<GroupMembership>>;
+    listLoans(groupId: string): Promise<Array<Loan>>;
+    listMyGroups(): Promise<Array<Group>>;
+    payContribution(groupId: string, amount: number, month: bigint, year: bigint): Promise<Contribution>;
+    payLoanInterest(groupId: string, loanId: string, amount: number): Promise<Transaction>;
+    recordContribution(groupId: string, memberPrincipal: Principal, amount: number, month: bigint, year: bigint): Promise<Contribution>;
+    removeMember(groupId: string, memberPrincipal: Principal): Promise<boolean>;
+    repayPrincipal(groupId: string, loanId: string, amount: number): Promise<Loan>;
+    runMonthlyInterestCalculation(groupId: string, month: bigint, year: bigint): Promise<Array<Transaction>>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
-    updateGroupSettings(monthlyContribution: number, interestRatePercent: number, penaltyRatePercent: number): Promise<GroupSettings>;
+    updateGroupSettings(groupId: string, monthlyContribution: number, interestRatePercent: number, penaltyRatePercent: number): Promise<Group>;
+    updateMemberStatus(groupId: string, memberPrincipal: Principal, isActive: boolean): Promise<GroupMembership>;
 }
-import type { Contribution as _Contribution, Loan as _Loan, Member as _Member, Transaction as _Transaction, UserProfile as _UserProfile, UserRole as _UserRole } from "./declarations/backend.did.d.ts";
+import type { Contribution as _Contribution, Group as _Group, GroupMembership as _GroupMembership, Transaction as _Transaction, UserProfile as _UserProfile, UserRole as _UserRole } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
     constructor(private actor: ActorSubclass<_SERVICE>, private _uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, private _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, private processError?: (error: unknown) => never){}
     async _initializeAccessControlWithSecret(arg0: string): Promise<void> {
@@ -202,45 +211,31 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async addMember(arg0: string, arg1: string, arg2: string): Promise<Member> {
+    async adjustRecord(arg0: string, arg1: string, arg2: number, arg3: string): Promise<Transaction> {
         if (this.processError) {
             try {
-                const result = await this.actor.addMember(arg0, arg1, arg2);
-                return result;
-            } catch (e) {
-                this.processError(e);
-                throw new Error("unreachable");
-            }
-        } else {
-            const result = await this.actor.addMember(arg0, arg1, arg2);
-            return result;
-        }
-    }
-    async adjustRecord(arg0: string, arg1: number, arg2: string): Promise<Transaction> {
-        if (this.processError) {
-            try {
-                const result = await this.actor.adjustRecord(arg0, arg1, arg2);
+                const result = await this.actor.adjustRecord(arg0, arg1, arg2, arg3);
                 return from_candid_Transaction_n1(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.adjustRecord(arg0, arg1, arg2);
+            const result = await this.actor.adjustRecord(arg0, arg1, arg2, arg3);
             return from_candid_Transaction_n1(this._uploadFile, this._downloadFile, result);
         }
     }
-    async applyPenalty(arg0: string, arg1: bigint, arg2: bigint, arg3: number): Promise<Contribution> {
+    async applyPenalty(arg0: string, arg1: Principal, arg2: bigint, arg3: bigint, arg4: number): Promise<Contribution> {
         if (this.processError) {
             try {
-                const result = await this.actor.applyPenalty(arg0, arg1, arg2, arg3);
+                const result = await this.actor.applyPenalty(arg0, arg1, arg2, arg3, arg4);
                 return from_candid_Contribution_n4(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.applyPenalty(arg0, arg1, arg2, arg3);
+            const result = await this.actor.applyPenalty(arg0, arg1, arg2, arg3, arg4);
             return from_candid_Contribution_n4(this._uploadFile, this._downloadFile, result);
         }
     }
@@ -258,73 +253,73 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async closeLoan(arg0: string): Promise<Loan> {
+    async closeLoan(arg0: string, arg1: string): Promise<Loan> {
         if (this.processError) {
             try {
-                const result = await this.actor.closeLoan(arg0);
+                const result = await this.actor.closeLoan(arg0, arg1);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.closeLoan(arg0);
+            const result = await this.actor.closeLoan(arg0, arg1);
             return result;
         }
     }
-    async createLoan(arg0: string, arg1: number): Promise<Loan> {
+    async createGroup(arg0: string, arg1: string): Promise<Group> {
         if (this.processError) {
             try {
-                const result = await this.actor.createLoan(arg0, arg1);
+                const result = await this.actor.createGroup(arg0, arg1);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.createLoan(arg0, arg1);
+            const result = await this.actor.createGroup(arg0, arg1);
             return result;
         }
     }
-    async deleteMember(arg0: string): Promise<boolean> {
+    async createLoan(arg0: string, arg1: Principal, arg2: number): Promise<Loan> {
         if (this.processError) {
             try {
-                const result = await this.actor.deleteMember(arg0);
+                const result = await this.actor.createLoan(arg0, arg1, arg2);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.deleteMember(arg0);
+            const result = await this.actor.createLoan(arg0, arg1, arg2);
             return result;
         }
     }
-    async editMember(arg0: string, arg1: string, arg2: string, arg3: string, arg4: boolean): Promise<Member> {
+    async deleteGroup(arg0: string): Promise<boolean> {
         if (this.processError) {
             try {
-                const result = await this.actor.editMember(arg0, arg1, arg2, arg3, arg4);
+                const result = await this.actor.deleteGroup(arg0);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.editMember(arg0, arg1, arg2, arg3, arg4);
+            const result = await this.actor.deleteGroup(arg0);
             return result;
         }
     }
-    async getAllTransactions(): Promise<Array<Transaction>> {
+    async getAllTransactions(arg0: string): Promise<Array<Transaction>> {
         if (this.processError) {
             try {
-                const result = await this.actor.getAllTransactions();
+                const result = await this.actor.getAllTransactions(arg0);
                 return from_candid_vec_n9(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.getAllTransactions();
+            const result = await this.actor.getAllTransactions(arg0);
             return from_candid_vec_n9(this._uploadFile, this._downloadFile, result);
         }
     }
@@ -356,143 +351,101 @@ export class Backend implements backendInterface {
             return from_candid_UserRole_n11(this._uploadFile, this._downloadFile, result);
         }
     }
-    async getGroupSettings(): Promise<GroupSettings> {
+    async getGroup(arg0: string): Promise<Group | null> {
         if (this.processError) {
             try {
-                const result = await this.actor.getGroupSettings();
-                return result;
-            } catch (e) {
-                this.processError(e);
-                throw new Error("unreachable");
-            }
-        } else {
-            const result = await this.actor.getGroupSettings();
-            return result;
-        }
-    }
-    async getGroupSummary(): Promise<GroupSummary> {
-        if (this.processError) {
-            try {
-                const result = await this.actor.getGroupSummary();
-                return result;
-            } catch (e) {
-                this.processError(e);
-                throw new Error("unreachable");
-            }
-        } else {
-            const result = await this.actor.getGroupSummary();
-            return result;
-        }
-    }
-    async getLoan(arg0: string): Promise<Loan | null> {
-        if (this.processError) {
-            try {
-                const result = await this.actor.getLoan(arg0);
+                const result = await this.actor.getGroup(arg0);
                 return from_candid_opt_n13(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.getLoan(arg0);
+            const result = await this.actor.getGroup(arg0);
             return from_candid_opt_n13(this._uploadFile, this._downloadFile, result);
         }
     }
-    async getMember(arg0: string): Promise<Member | null> {
+    async getGroupSummary(arg0: string): Promise<GroupSummary> {
         if (this.processError) {
             try {
-                const result = await this.actor.getMember(arg0);
-                return from_candid_opt_n14(this._uploadFile, this._downloadFile, result);
-            } catch (e) {
-                this.processError(e);
-                throw new Error("unreachable");
-            }
-        } else {
-            const result = await this.actor.getMember(arg0);
-            return from_candid_opt_n14(this._uploadFile, this._downloadFile, result);
-        }
-    }
-    async getMemberTransactions(arg0: string): Promise<Array<Transaction>> {
-        if (this.processError) {
-            try {
-                const result = await this.actor.getMemberTransactions(arg0);
-                return from_candid_vec_n9(this._uploadFile, this._downloadFile, result);
-            } catch (e) {
-                this.processError(e);
-                throw new Error("unreachable");
-            }
-        } else {
-            const result = await this.actor.getMemberTransactions(arg0);
-            return from_candid_vec_n9(this._uploadFile, this._downloadFile, result);
-        }
-    }
-    async getMyContributions(): Promise<Array<Contribution>> {
-        if (this.processError) {
-            try {
-                const result = await this.actor.getMyContributions();
-                return from_candid_vec_n15(this._uploadFile, this._downloadFile, result);
-            } catch (e) {
-                this.processError(e);
-                throw new Error("unreachable");
-            }
-        } else {
-            const result = await this.actor.getMyContributions();
-            return from_candid_vec_n15(this._uploadFile, this._downloadFile, result);
-        }
-    }
-    async getMyLoans(): Promise<Array<Loan>> {
-        if (this.processError) {
-            try {
-                const result = await this.actor.getMyLoans();
+                const result = await this.actor.getGroupSummary(arg0);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.getMyLoans();
+            const result = await this.actor.getGroupSummary(arg0);
             return result;
         }
     }
-    async getMyOutstandingBalance(): Promise<number> {
+    async getMyContributions(arg0: string): Promise<Array<Contribution>> {
         if (this.processError) {
             try {
-                const result = await this.actor.getMyOutstandingBalance();
+                const result = await this.actor.getMyContributions(arg0);
+                return from_candid_vec_n14(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getMyContributions(arg0);
+            return from_candid_vec_n14(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async getMyGroupProfile(arg0: string): Promise<GroupMembership | null> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getMyGroupProfile(arg0);
+                return from_candid_opt_n15(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getMyGroupProfile(arg0);
+            return from_candid_opt_n15(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async getMyLoans(arg0: string): Promise<Array<Loan>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getMyLoans(arg0);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.getMyOutstandingBalance();
+            const result = await this.actor.getMyLoans(arg0);
             return result;
         }
     }
-    async getMyProfile(): Promise<Member | null> {
+    async getMyOutstandingBalance(arg0: string): Promise<number> {
         if (this.processError) {
             try {
-                const result = await this.actor.getMyProfile();
-                return from_candid_opt_n14(this._uploadFile, this._downloadFile, result);
+                const result = await this.actor.getMyOutstandingBalance(arg0);
+                return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.getMyProfile();
-            return from_candid_opt_n14(this._uploadFile, this._downloadFile, result);
+            const result = await this.actor.getMyOutstandingBalance(arg0);
+            return result;
         }
     }
-    async getMyTransactions(): Promise<Array<Transaction>> {
+    async getMyTransactions(arg0: string): Promise<Array<Transaction>> {
         if (this.processError) {
             try {
-                const result = await this.actor.getMyTransactions();
+                const result = await this.actor.getMyTransactions(arg0);
                 return from_candid_vec_n9(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.getMyTransactions();
+            const result = await this.actor.getMyTransactions(arg0);
             return from_candid_vec_n9(this._uploadFile, this._downloadFile, result);
         }
     }
@@ -524,101 +477,157 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async listLoans(): Promise<Array<Loan>> {
+    async joinGroup(arg0: string): Promise<Group> {
         if (this.processError) {
             try {
-                const result = await this.actor.listLoans();
+                const result = await this.actor.joinGroup(arg0);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.listLoans();
+            const result = await this.actor.joinGroup(arg0);
             return result;
         }
     }
-    async listMembers(): Promise<Array<Member>> {
+    async leaveGroup(arg0: string): Promise<boolean> {
         if (this.processError) {
             try {
-                const result = await this.actor.listMembers();
+                const result = await this.actor.leaveGroup(arg0);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.listMembers();
+            const result = await this.actor.leaveGroup(arg0);
             return result;
         }
     }
-    async payContribution(arg0: number, arg1: bigint, arg2: bigint): Promise<Contribution> {
+    async listGroupMembers(arg0: string): Promise<Array<GroupMembership>> {
         if (this.processError) {
             try {
-                const result = await this.actor.payContribution(arg0, arg1, arg2);
+                const result = await this.actor.listGroupMembers(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.listGroupMembers(arg0);
+            return result;
+        }
+    }
+    async listLoans(arg0: string): Promise<Array<Loan>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.listLoans(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.listLoans(arg0);
+            return result;
+        }
+    }
+    async listMyGroups(): Promise<Array<Group>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.listMyGroups();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.listMyGroups();
+            return result;
+        }
+    }
+    async payContribution(arg0: string, arg1: number, arg2: bigint, arg3: bigint): Promise<Contribution> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.payContribution(arg0, arg1, arg2, arg3);
                 return from_candid_Contribution_n4(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.payContribution(arg0, arg1, arg2);
+            const result = await this.actor.payContribution(arg0, arg1, arg2, arg3);
             return from_candid_Contribution_n4(this._uploadFile, this._downloadFile, result);
         }
     }
-    async payLoanInterest(arg0: string, arg1: number): Promise<Transaction> {
+    async payLoanInterest(arg0: string, arg1: string, arg2: number): Promise<Transaction> {
         if (this.processError) {
             try {
-                const result = await this.actor.payLoanInterest(arg0, arg1);
+                const result = await this.actor.payLoanInterest(arg0, arg1, arg2);
                 return from_candid_Transaction_n1(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.payLoanInterest(arg0, arg1);
+            const result = await this.actor.payLoanInterest(arg0, arg1, arg2);
             return from_candid_Transaction_n1(this._uploadFile, this._downloadFile, result);
         }
     }
-    async recordContribution(arg0: string, arg1: number, arg2: bigint, arg3: bigint): Promise<Contribution> {
+    async recordContribution(arg0: string, arg1: Principal, arg2: number, arg3: bigint, arg4: bigint): Promise<Contribution> {
         if (this.processError) {
             try {
-                const result = await this.actor.recordContribution(arg0, arg1, arg2, arg3);
+                const result = await this.actor.recordContribution(arg0, arg1, arg2, arg3, arg4);
                 return from_candid_Contribution_n4(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.recordContribution(arg0, arg1, arg2, arg3);
+            const result = await this.actor.recordContribution(arg0, arg1, arg2, arg3, arg4);
             return from_candid_Contribution_n4(this._uploadFile, this._downloadFile, result);
         }
     }
-    async repayPrincipal(arg0: string, arg1: number): Promise<Loan> {
+    async removeMember(arg0: string, arg1: Principal): Promise<boolean> {
         if (this.processError) {
             try {
-                const result = await this.actor.repayPrincipal(arg0, arg1);
+                const result = await this.actor.removeMember(arg0, arg1);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.repayPrincipal(arg0, arg1);
+            const result = await this.actor.removeMember(arg0, arg1);
             return result;
         }
     }
-    async runMonthlyInterestCalculation(arg0: bigint, arg1: bigint): Promise<Array<Transaction>> {
+    async repayPrincipal(arg0: string, arg1: string, arg2: number): Promise<Loan> {
         if (this.processError) {
             try {
-                const result = await this.actor.runMonthlyInterestCalculation(arg0, arg1);
+                const result = await this.actor.repayPrincipal(arg0, arg1, arg2);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.repayPrincipal(arg0, arg1, arg2);
+            return result;
+        }
+    }
+    async runMonthlyInterestCalculation(arg0: string, arg1: bigint, arg2: bigint): Promise<Array<Transaction>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.runMonthlyInterestCalculation(arg0, arg1, arg2);
                 return from_candid_vec_n9(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.runMonthlyInterestCalculation(arg0, arg1);
+            const result = await this.actor.runMonthlyInterestCalculation(arg0, arg1, arg2);
             return from_candid_vec_n9(this._uploadFile, this._downloadFile, result);
         }
     }
@@ -636,17 +645,31 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async updateGroupSettings(arg0: number, arg1: number, arg2: number): Promise<GroupSettings> {
+    async updateGroupSettings(arg0: string, arg1: number, arg2: number, arg3: number): Promise<Group> {
         if (this.processError) {
             try {
-                const result = await this.actor.updateGroupSettings(arg0, arg1, arg2);
+                const result = await this.actor.updateGroupSettings(arg0, arg1, arg2, arg3);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.updateGroupSettings(arg0, arg1, arg2);
+            const result = await this.actor.updateGroupSettings(arg0, arg1, arg2, arg3);
+            return result;
+        }
+    }
+    async updateMemberStatus(arg0: string, arg1: Principal, arg2: boolean): Promise<GroupMembership> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updateMemberStatus(arg0, arg1, arg2);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updateMemberStatus(arg0, arg1, arg2);
             return result;
         }
     }
@@ -663,10 +686,10 @@ function from_candid_UserRole_n11(_uploadFile: (file: ExternalBlob) => Promise<U
 function from_candid_opt_n10(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_UserProfile]): UserProfile | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_opt_n13(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_Loan]): Loan | null {
+function from_candid_opt_n13(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_Group]): Group | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_opt_n14(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_Member]): Member | null {
+function from_candid_opt_n15(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_GroupMembership]): GroupMembership | null {
     return value.length === 0 ? null : value[0];
 }
 function from_candid_opt_n3(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [string]): string | null {
@@ -677,58 +700,64 @@ function from_candid_opt_n6(_uploadFile: (file: ExternalBlob) => Promise<Uint8Ar
 }
 function from_candid_record_n2(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     id: string;
-    memberId: string;
     transactionType: string;
     relatedLoanId: [] | [string];
     date: bigint;
+    memberPrincipal: Principal;
     description: string;
+    groupId: string;
     amount: number;
 }): {
     id: string;
-    memberId: string;
     transactionType: string;
     relatedLoanId?: string;
     date: bigint;
+    memberPrincipal: Principal;
     description: string;
+    groupId: string;
     amount: number;
 } {
     return {
         id: value.id,
-        memberId: value.memberId,
         transactionType: value.transactionType,
         relatedLoanId: record_opt_to_undefined(from_candid_opt_n3(_uploadFile, _downloadFile, value.relatedLoanId)),
         date: value.date,
+        memberPrincipal: value.memberPrincipal,
         description: value.description,
+        groupId: value.groupId,
         amount: value.amount
     };
 }
 function from_candid_record_n5(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     id: string;
     status: string;
-    memberId: string;
     month: bigint;
+    memberPrincipal: Principal;
     penaltyAmount: number;
     year: bigint;
     paidDate: [] | [bigint];
+    groupId: string;
     amount: number;
 }): {
     id: string;
     status: string;
-    memberId: string;
     month: bigint;
+    memberPrincipal: Principal;
     penaltyAmount: number;
     year: bigint;
     paidDate?: bigint;
+    groupId: string;
     amount: number;
 } {
     return {
         id: value.id,
         status: value.status,
-        memberId: value.memberId,
         month: value.month,
+        memberPrincipal: value.memberPrincipal,
         penaltyAmount: value.penaltyAmount,
         year: value.year,
         paidDate: record_opt_to_undefined(from_candid_opt_n6(_uploadFile, _downloadFile, value.paidDate)),
+        groupId: value.groupId,
         amount: value.amount
     };
 }
@@ -741,7 +770,7 @@ function from_candid_variant_n12(_uploadFile: (file: ExternalBlob) => Promise<Ui
 }): UserRole {
     return "admin" in value ? UserRole.admin : "user" in value ? UserRole.user : "guest" in value ? UserRole.guest : value;
 }
-function from_candid_vec_n15(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_Contribution>): Array<Contribution> {
+function from_candid_vec_n14(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_Contribution>): Array<Contribution> {
     return value.map((x)=>from_candid_Contribution_n4(_uploadFile, _downloadFile, x));
 }
 function from_candid_vec_n9(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_Transaction>): Array<Transaction> {

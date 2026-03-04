@@ -1,4 +1,4 @@
-import { useAuth, useIsAdmin } from "@/auth";
+import { useAuth } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "@tanstack/react-router";
 import {
@@ -48,20 +48,15 @@ const stats = [
 
 export default function LandingPage() {
   const { isAuthenticated, login, isInitializing } = useAuth();
-  const isAdmin = useIsAdmin();
   const navigate = useNavigate();
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  // Redirect after login
+  // Redirect to group hub after login
   useEffect(() => {
     if (isAuthenticated) {
-      if (isAdmin) {
-        navigate({ to: "/admin/dashboard" });
-      } else {
-        navigate({ to: "/member/dashboard" });
-      }
+      navigate({ to: "/group-hub" });
     }
-  }, [isAuthenticated, isAdmin, navigate]);
+  }, [isAuthenticated, navigate]);
 
   function handleLogin() {
     setIsLoggingIn(true);

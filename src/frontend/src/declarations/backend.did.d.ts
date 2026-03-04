@@ -13,17 +13,33 @@ import type { Principal } from '@icp-sdk/core/principal';
 export interface Contribution {
   'id' : string,
   'status' : string,
-  'memberId' : string,
   'month' : bigint,
+  'memberPrincipal' : Principal,
   'penaltyAmount' : number,
   'year' : bigint,
   'paidDate' : [] | [bigint],
+  'groupId' : string,
   'amount' : number,
 }
-export interface GroupSettings {
+export interface Group {
+  'id' : string,
   'penaltyRatePercent' : number,
+  'name' : string,
+  'createdAt' : bigint,
+  'createdBy' : Principal,
+  'description' : string,
   'interestRatePercent' : number,
+  'groupCode' : string,
   'monthlyContribution' : number,
+}
+export interface GroupMembership {
+  'memberPrincipal' : Principal,
+  'joinedAt' : bigint,
+  'isActive' : boolean,
+  'memberEmail' : string,
+  'groupId' : string,
+  'memberName' : string,
+  'memberPhone' : string,
 }
 export interface GroupSummary {
   'memberCount' : bigint,
@@ -36,29 +52,21 @@ export interface GroupSummary {
 export interface Loan {
   'id' : string,
   'status' : string,
-  'memberId' : string,
+  'memberPrincipal' : Principal,
+  'groupId' : string,
   'outstandingBalance' : number,
   'interestRatePercent' : number,
   'principalAmount' : number,
   'startDate' : bigint,
 }
-export interface Member {
-  'id' : string,
-  'principal' : Principal,
-  'joinDate' : bigint,
-  'name' : string,
-  'role' : string,
-  'isActive' : boolean,
-  'email' : string,
-  'phone' : string,
-}
 export interface Transaction {
   'id' : string,
-  'memberId' : string,
   'transactionType' : string,
   'relatedLoanId' : [] | [string],
   'date' : bigint,
+  'memberPrincipal' : Principal,
   'description' : string,
+  'groupId' : string,
   'amount' : number,
 }
 export interface UserProfile {
@@ -71,44 +79,54 @@ export type UserRole = { 'admin' : null } |
   { 'guest' : null };
 export interface _SERVICE {
   '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
-  'addMember' : ActorMethod<[string, string, string], Member>,
-  'adjustRecord' : ActorMethod<[string, number, string], Transaction>,
-  'applyPenalty' : ActorMethod<[string, bigint, bigint, number], Contribution>,
+  'adjustRecord' : ActorMethod<[string, string, number, string], Transaction>,
+  'applyPenalty' : ActorMethod<
+    [string, Principal, bigint, bigint, number],
+    Contribution
+  >,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
-  'closeLoan' : ActorMethod<[string], Loan>,
-  'createLoan' : ActorMethod<[string, number], Loan>,
-  'deleteMember' : ActorMethod<[string], boolean>,
-  'editMember' : ActorMethod<[string, string, string, string, boolean], Member>,
-  'getAllTransactions' : ActorMethod<[], Array<Transaction>>,
+  'closeLoan' : ActorMethod<[string, string], Loan>,
+  'createGroup' : ActorMethod<[string, string], Group>,
+  'createLoan' : ActorMethod<[string, Principal, number], Loan>,
+  'deleteGroup' : ActorMethod<[string], boolean>,
+  'getAllTransactions' : ActorMethod<[string], Array<Transaction>>,
   'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
-  'getGroupSettings' : ActorMethod<[], GroupSettings>,
-  'getGroupSummary' : ActorMethod<[], GroupSummary>,
-  'getLoan' : ActorMethod<[string], [] | [Loan]>,
-  'getMember' : ActorMethod<[string], [] | [Member]>,
-  'getMemberTransactions' : ActorMethod<[string], Array<Transaction>>,
-  'getMyContributions' : ActorMethod<[], Array<Contribution>>,
-  'getMyLoans' : ActorMethod<[], Array<Loan>>,
-  'getMyOutstandingBalance' : ActorMethod<[], number>,
-  'getMyProfile' : ActorMethod<[], [] | [Member]>,
-  'getMyTransactions' : ActorMethod<[], Array<Transaction>>,
+  'getGroup' : ActorMethod<[string], [] | [Group]>,
+  'getGroupSummary' : ActorMethod<[string], GroupSummary>,
+  'getMyContributions' : ActorMethod<[string], Array<Contribution>>,
+  'getMyGroupProfile' : ActorMethod<[string], [] | [GroupMembership]>,
+  'getMyLoans' : ActorMethod<[string], Array<Loan>>,
+  'getMyOutstandingBalance' : ActorMethod<[string], number>,
+  'getMyTransactions' : ActorMethod<[string], Array<Transaction>>,
   'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
-  'listLoans' : ActorMethod<[], Array<Loan>>,
-  'listMembers' : ActorMethod<[], Array<Member>>,
-  'payContribution' : ActorMethod<[number, bigint, bigint], Contribution>,
-  'payLoanInterest' : ActorMethod<[string, number], Transaction>,
-  'recordContribution' : ActorMethod<
+  'joinGroup' : ActorMethod<[string], Group>,
+  'leaveGroup' : ActorMethod<[string], boolean>,
+  'listGroupMembers' : ActorMethod<[string], Array<GroupMembership>>,
+  'listLoans' : ActorMethod<[string], Array<Loan>>,
+  'listMyGroups' : ActorMethod<[], Array<Group>>,
+  'payContribution' : ActorMethod<
     [string, number, bigint, bigint],
     Contribution
   >,
-  'repayPrincipal' : ActorMethod<[string, number], Loan>,
+  'payLoanInterest' : ActorMethod<[string, string, number], Transaction>,
+  'recordContribution' : ActorMethod<
+    [string, Principal, number, bigint, bigint],
+    Contribution
+  >,
+  'removeMember' : ActorMethod<[string, Principal], boolean>,
+  'repayPrincipal' : ActorMethod<[string, string, number], Loan>,
   'runMonthlyInterestCalculation' : ActorMethod<
-    [bigint, bigint],
+    [string, bigint, bigint],
     Array<Transaction>
   >,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
-  'updateGroupSettings' : ActorMethod<[number, number, number], GroupSettings>,
+  'updateGroupSettings' : ActorMethod<[string, number, number, number], Group>,
+  'updateMemberStatus' : ActorMethod<
+    [string, Principal, boolean],
+    GroupMembership
+  >,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];

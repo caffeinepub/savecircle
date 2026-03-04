@@ -38,21 +38,26 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useCurrency } from "@/context/CurrencyContext";
+import { useGroup } from "@/context/GroupContext";
 import {
   useCloseLoan,
   useCreateLoan,
+  useGroupMembers,
   useLoans,
-  useMembers,
 } from "@/hooks/useQueries";
 import { formatCurrency, formatDate } from "@/utils/format";
+import { Principal } from "@icp-sdk/core/principal";
 import { CreditCard, Loader2, Plus, Search, XCircle } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 export default function AdminLoans() {
-  const { data: loans, isLoading: loansLoading } = useLoans();
-  const { data: members } = useMembers();
+  const { activeGroup } = useGroup();
+  const groupId = activeGroup?.id;
+
+  const { data: loans, isLoading: loansLoading } = useLoans(groupId);
+  const { data: members } = useGroupMembers(groupId);
   const createLoan = useCreateLoan();
   const closeLoan = useCloseLoan();
 
@@ -63,15 +68,19 @@ export default function AdminLoans() {
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
 
   // Form
-  const [selectedMemberId, setSelectedMemberId] = useState("");
+  const [selectedMemberPrincipal, setSelectedMemberPrincipal] = useState("");
   const [principalAmount, setPrincipalAmount] = useState("");
 
-  const memberMap = Object.fromEntries(
-    (members ?? []).map((m) => [m.id, m.name]),
+  // Build a name lookup by principal string
+  const memberNameMap = Object.fromEntries(
+    (members ?? []).map((m) => [
+      m.memberPrincipal.toText(),
+      m.memberName || `${m.memberPrincipal.toText().slice(0, 10)}...`,
+    ]),
   );
 
   const filtered = (loans ?? []).filter((l) => {
-    const memberName = memberMap[l.memberId] ?? "";
+    const memberName = memberNameMap[l.memberPrincipal.toText()] ?? "";
     return (
       memberName.toLowerCase().includes(search.toLowerCase()) ||
       l.id.includes(search) ||
@@ -80,7 +89,7 @@ export default function AdminLoans() {
   });
 
   async function handleCreate() {
-    if (!selectedMemberId || !principalAmount) {
+    if (!selectedMemberPrincipal || !principalAmount) {
       toast.error("Please select a member and enter an amount.");
       return;
     }
@@ -90,13 +99,14 @@ export default function AdminLoans() {
       return;
     }
     try {
+      const principal = Principal.fromText(selectedMemberPrincipal);
       await createLoan.mutateAsync({
-        memberId: selectedMemberId,
+        memberPrincipal: principal,
         principalAmount: amount,
       });
       toast.success("Loan created successfully.");
       setCreateOpen(false);
-      setSelectedMemberId("");
+      setSelectedMemberPrincipal("");
       setPrincipalAmount("");
     } catch {
       toast.error("Failed to create loan.");
@@ -129,6 +139,7 @@ export default function AdminLoans() {
           onClick={() => setCreateOpen(true)}
           className="bg-brand hover:bg-brand-dark text-white"
           data-ocid="loan.create_button"
+          disabled={!groupId}
         >
           <Plus className="mr-2 h-4 w-4" />
           Create Loan
@@ -206,7 +217,8 @@ export default function AdminLoans() {
                     <TableCell className="pl-5 py-4">
                       <div>
                         <p className="text-sm font-medium text-foreground">
-                          {memberMap[loan.memberId] ?? "Unknown"}
+                          {memberNameMap[loan.memberPrincipal.toText()] ??
+                            "Unknown"}
                         </p>
                         <p className="text-xs font-mono text-muted-foreground/60">
                           {loan.id.slice(0, 10)}...
@@ -237,7 +249,7 @@ export default function AdminLoans() {
                             setSelectedLoan(loan);
                             setCloseOpen(true);
                           }}
-                          data-ocid="loan.close_button"
+                          data-ocid={`loans.close.button.${i + 1}`}
                           className="h-7 text-xs border-destructive/30 text-destructive hover:bg-destructive hover:text-white"
                         >
                           <XCircle className="mr-1 h-3 w-3" />
@@ -266,8 +278,8 @@ export default function AdminLoans() {
             <div className="space-y-1.5">
               <Label>Member *</Label>
               <Select
-                value={selectedMemberId}
-                onValueChange={setSelectedMemberId}
+                value={selectedMemberPrincipal}
+                onValueChange={setSelectedMemberPrincipal}
               >
                 <SelectTrigger data-ocid="loan.select">
                   <SelectValue placeholder="Select a member..." />
@@ -276,8 +288,12 @@ export default function AdminLoans() {
                   {(members ?? [])
                     .filter((m) => m.isActive)
                     .map((m) => (
-                      <SelectItem key={m.id} value={m.id}>
-                        {m.name}
+                      <SelectItem
+                        key={m.memberPrincipal.toText()}
+                        value={m.memberPrincipal.toText()}
+                      >
+                        {m.memberName ||
+                          `${m.memberPrincipal.toText().slice(0, 16)}...`}
                       </SelectItem>
                     ))}
                 </SelectContent>
@@ -329,7 +345,10 @@ export default function AdminLoans() {
             <AlertDialogDescription>
               Are you sure you want to close this loan for{" "}
               <strong>
-                {memberMap[selectedLoan?.memberId ?? ""] ?? "Unknown"}
+                {selectedLoan
+                  ? (memberNameMap[selectedLoan.memberPrincipal.toText()] ??
+                    "Unknown")
+                  : "Unknown"}
               </strong>
               ? Outstanding balance:{" "}
               <strong>

@@ -1,4 +1,4 @@
-import type { Member } from "@/backend.d";
+import type { GroupMembership } from "@/backend.d";
 import { StatusBadge } from "@/components/StatusBadge";
 import {
   AlertDialog,
@@ -11,18 +11,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -31,140 +21,117 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useGroup } from "@/context/GroupContext";
 import {
-  useAddMember,
-  useDeleteMember,
-  useEditMember,
-  useMembers,
+  useGroupMembers,
+  useRemoveMember,
+  useUpdateMemberStatus,
 } from "@/hooks/useQueries";
-import { formatDate } from "@/utils/format";
-import {
-  Loader2,
-  MoreHorizontal,
-  Pencil,
-  Plus,
-  Search,
-  Trash2,
-  Users,
-} from "lucide-react";
+import { Loader2, Search, Share2, Trash2, Users } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+function GroupCodeDisplay({ code }: { code: string }) {
+  function handleCopy() {
+    navigator.clipboard.writeText(code);
+    toast.success("Group code copied to clipboard!");
+  }
+
+  return (
+    <div className="rounded-lg border border-brand/20 bg-brand-subtle p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="flex items-center gap-3">
+        <Share2 className="h-4 w-4 text-brand shrink-0" />
+        <div>
+          <p className="text-sm font-medium text-foreground">
+            Invite members with your group code
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Share this code with people you want to join this group
+          </p>
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={handleCopy}
+        className="flex items-center gap-2 rounded-lg border border-brand/30 bg-white px-4 py-2 font-mono text-xl font-bold tracking-widest text-brand hover:bg-brand-subtle transition-colors cursor-pointer"
+        title="Click to copy"
+        data-ocid="members.code.button"
+      >
+        {code}
+      </button>
+    </div>
+  );
+}
+
 export default function AdminMembers() {
-  const { data: members, isLoading } = useMembers();
-  const addMember = useAddMember();
-  const editMember = useEditMember();
-  const deleteMember = useDeleteMember();
+  const { activeGroup } = useGroup();
+  const groupId = activeGroup?.id;
+
+  const { data: members, isLoading } = useGroupMembers(groupId);
+  const removeMember = useRemoveMember();
+  const updateStatus = useUpdateMemberStatus();
 
   const [search, setSearch] = useState("");
-  const [addOpen, setAddOpen] = useState(false);
-  const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
-
-  // Form state
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [isActive, setIsActive] = useState(true);
+  const [selectedMember, setSelectedMember] = useState<GroupMembership | null>(
+    null,
+  );
 
   const filtered =
     members?.filter(
       (m) =>
-        m.name.toLowerCase().includes(search.toLowerCase()) ||
-        m.email.toLowerCase().includes(search.toLowerCase()) ||
-        m.phone.includes(search),
+        m.memberName.toLowerCase().includes(search.toLowerCase()) ||
+        m.memberEmail.toLowerCase().includes(search.toLowerCase()) ||
+        m.memberPhone.includes(search),
     ) ?? [];
 
-  function openAdd() {
-    setName("");
-    setEmail("");
-    setPhone("");
-    setAddOpen(true);
-  }
-
-  function openEdit(member: Member) {
-    setSelectedMember(member);
-    setName(member.name);
-    setEmail(member.email);
-    setPhone(member.phone);
-    setIsActive(member.isActive);
-    setEditOpen(true);
-  }
-
-  function openDelete(member: Member) {
+  function openDelete(member: GroupMembership) {
     setSelectedMember(member);
     setDeleteOpen(true);
-  }
-
-  async function handleAdd() {
-    if (!name.trim() || !email.trim()) {
-      toast.error("Name and email are required.");
-      return;
-    }
-    try {
-      await addMember.mutateAsync({
-        name: name.trim(),
-        email: email.trim(),
-        phone: phone.trim(),
-      });
-      toast.success(`${name} added successfully.`);
-      setAddOpen(false);
-    } catch {
-      toast.error("Failed to add member.");
-    }
-  }
-
-  async function handleEdit() {
-    if (!selectedMember) return;
-    try {
-      await editMember.mutateAsync({
-        id: selectedMember.id,
-        name: name.trim(),
-        email: email.trim(),
-        phone: phone.trim(),
-        isActive,
-      });
-      toast.success(`${name} updated successfully.`);
-      setEditOpen(false);
-    } catch {
-      toast.error("Failed to update member.");
-    }
   }
 
   async function handleDelete() {
     if (!selectedMember) return;
     try {
-      await deleteMember.mutateAsync(selectedMember.id);
-      toast.success(`${selectedMember.name} removed.`);
+      await removeMember.mutateAsync({
+        memberPrincipal: selectedMember.memberPrincipal,
+      });
+      toast.success("Member removed from group.");
       setDeleteOpen(false);
     } catch {
-      toast.error("Failed to delete member.");
+      toast.error("Failed to remove member.");
+    }
+  }
+
+  async function handleToggleStatus(member: GroupMembership) {
+    try {
+      await updateStatus.mutateAsync({
+        memberPrincipal: member.memberPrincipal,
+        isActive: !member.isActive,
+      });
+      toast.success(
+        `Member ${!member.isActive ? "activated" : "deactivated"}.`,
+      );
+    } catch {
+      toast.error("Failed to update member status.");
     }
   }
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-foreground">
-            Members
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {members?.length ?? 0} registered members
-          </p>
-        </div>
-        <Button
-          onClick={openAdd}
-          className="bg-brand hover:bg-brand-dark text-white"
-          data-ocid="member.add_button"
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Add Member
-        </Button>
+      <div className="flex flex-col gap-1">
+        <h1 className="font-display text-2xl font-bold text-foreground">
+          Members
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          {members?.length ?? 0} member(s) in this group
+        </p>
       </div>
+
+      {/* Group Code */}
+      {activeGroup && <GroupCodeDisplay code={activeGroup.groupCode} />}
 
       {/* Search */}
       <div className="relative">
@@ -202,7 +169,7 @@ export default function AdminMembers() {
             <p className="text-sm text-muted-foreground/60 mt-1">
               {search
                 ? "Try adjusting your search"
-                : 'Click "Add Member" to get started'}
+                : "Share the group code above to invite members"}
             </p>
           </div>
         ) : (
@@ -225,225 +192,101 @@ export default function AdminMembers() {
                   <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Status
                   </TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground hidden lg:table-cell">
-                    Role
-                  </TableHead>
                   <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground pr-4 text-right">
                     Actions
                   </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((member, i) => (
-                  <TableRow
-                    key={member.id}
-                    data-ocid={`members.item.${i + 1}`}
-                    className="hover:bg-muted/30 border-border"
-                  >
-                    <TableCell className="pl-5 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-subtle text-xs font-bold text-brand">
-                          {member.name.slice(0, 2).toUpperCase()}
+                {filtered.map((member, i) => {
+                  const joinDate = new Date(
+                    Number(member.joinedAt) / 1_000_000,
+                  );
+                  return (
+                    <TableRow
+                      key={member.memberPrincipal.toText()}
+                      data-ocid={`members.item.${i + 1}`}
+                      className="hover:bg-muted/30 border-border"
+                    >
+                      <TableCell className="pl-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-subtle text-xs font-bold text-brand">
+                            {(member.memberName || "?")
+                              .slice(0, 2)
+                              .toUpperCase()}
+                          </div>
+                          <span className="text-sm font-medium text-foreground">
+                            {member.memberName || "—"}
+                          </span>
                         </div>
-                        <span className="text-sm font-medium text-foreground">
-                          {member.name}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {member.email}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground hidden sm:table-cell">
-                      {member.phone}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground hidden md:table-cell">
-                      {formatDate(member.joinDate)}
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge
-                        status={member.isActive ? "active" : "inactive"}
-                      />
-                    </TableCell>
-                    <TableCell className="hidden lg:table-cell">
-                      <span className="text-xs font-medium capitalize text-muted-foreground">
-                        {member.role}
-                      </span>
-                    </TableCell>
-                    <TableCell className="pr-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => openEdit(member)}
-                          data-ocid="member.edit_button"
-                          className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => openDelete(member)}
-                          data-ocid="member.delete_button"
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {member.memberEmail || "—"}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground hidden sm:table-cell">
+                        {member.memberPhone || "—"}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground hidden md:table-cell">
+                        {joinDate.toLocaleDateString("en-US", {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge
+                          status={member.isActive ? "active" : "inactive"}
+                        />
+                      </TableCell>
+                      <TableCell className="pr-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleToggleStatus(member)}
+                            disabled={updateStatus.isPending}
+                            data-ocid={`members.toggle.button.${i + 1}`}
+                            className="h-7 text-xs"
+                          >
+                            {updateStatus.isPending ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : member.isActive ? (
+                              "Deactivate"
+                            ) : (
+                              "Activate"
+                            )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openDelete(member)}
+                            data-ocid={`members.delete_button.${i + 1}`}
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
         )}
       </motion.div>
 
-      {/* Add Member Dialog */}
-      <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent data-ocid="member.dialog">
-          <DialogHeader>
-            <DialogTitle className="font-display">Add New Member</DialogTitle>
-            <DialogDescription>
-              Enter the member's details to add them to the savings group.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <Label>Full Name *</Label>
-              <Input
-                placeholder="e.g. Jane Adeyemi"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                data-ocid="member.input"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Email *</Label>
-              <Input
-                type="email"
-                placeholder="jane@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                data-ocid="member.input"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Phone</Label>
-              <Input
-                placeholder="+1 555 000 0000"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                data-ocid="member.input"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setAddOpen(false)}
-              data-ocid="member.cancel_button"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleAdd}
-              disabled={addMember.isPending}
-              className="bg-brand hover:bg-brand-dark text-white"
-              data-ocid="member.confirm_button"
-            >
-              {addMember.isPending && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              Add Member
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Member Dialog */}
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent data-ocid="member.dialog">
-          <DialogHeader>
-            <DialogTitle className="font-display">Edit Member</DialogTitle>
-            <DialogDescription>
-              Update the member's information.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <Label>Full Name</Label>
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                data-ocid="member.input"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Email</Label>
-              <Input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                data-ocid="member.input"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Phone</Label>
-              <Input
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                data-ocid="member.input"
-              />
-            </div>
-            <div className="flex items-center justify-between rounded-lg border border-border p-3">
-              <div>
-                <p className="text-sm font-medium">Active Status</p>
-                <p className="text-xs text-muted-foreground">
-                  Deactivate to suspend the member
-                </p>
-              </div>
-              <Switch
-                checked={isActive}
-                onCheckedChange={setIsActive}
-                data-ocid="member.switch"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setEditOpen(false)}
-              data-ocid="member.cancel_button"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleEdit}
-              disabled={editMember.isPending}
-              className="bg-brand hover:bg-brand-dark text-white"
-              data-ocid="member.save_button"
-            >
-              {editMember.isPending && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              Save Changes
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirmation */}
+      {/* Remove Member Confirmation */}
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent data-ocid="member.dialog">
           <AlertDialogHeader>
             <AlertDialogTitle className="font-display">
-              Delete Member
+              Remove Member
             </AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to remove{" "}
-              <strong>{selectedMember?.name}</strong>? This action cannot be
-              undone.
+              <strong>{selectedMember?.memberName || "this member"}</strong>{" "}
+              from the group? Their transaction history will be preserved.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -455,10 +298,10 @@ export default function AdminMembers() {
               className="bg-destructive hover:bg-destructive/90 text-white"
               data-ocid="member.delete_button"
             >
-              {deleteMember.isPending ? (
+              {removeMember.isPending ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : null}
-              Delete
+              Remove
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

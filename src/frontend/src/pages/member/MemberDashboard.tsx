@@ -20,13 +20,13 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCurrency } from "@/context/CurrencyContext";
+import { useGroup } from "@/context/GroupContext";
 import {
-  useGroupSettings,
   useMyContributions,
   useMyOutstandingBalance,
-  useMyProfile,
   useMyTransactions,
   usePayContribution,
+  useUserProfile,
 } from "@/hooks/useQueries";
 import {
   formatCurrency,
@@ -57,13 +57,16 @@ const YEARS = Array.from(
 
 export default function MemberDashboard() {
   const navigate = useNavigate();
-  const { data: profile, isLoading: profileLoading } = useMyProfile();
+  const { activeGroup } = useGroup();
+  const groupId = activeGroup?.id;
+
+  const { data: profile, isLoading: profileLoading } = useUserProfile();
   const { data: balance, isLoading: balanceLoading } =
-    useMyOutstandingBalance();
+    useMyOutstandingBalance(groupId);
   const { data: contributions, isLoading: contribLoading } =
-    useMyContributions();
-  const { data: transactions, isLoading: txLoading } = useMyTransactions();
-  const { data: settings } = useGroupSettings();
+    useMyContributions(groupId);
+  const { data: transactions, isLoading: txLoading } =
+    useMyTransactions(groupId);
   const payContrib = usePayContribution();
 
   const { currency } = useCurrency();
@@ -83,7 +86,7 @@ export default function MemberDashboard() {
     .slice(0, 5);
 
   function openPay() {
-    setPayAmount(String(settings?.monthlyContribution ?? ""));
+    setPayAmount(String(activeGroup?.monthlyContribution ?? ""));
     setPayOpen(true);
   }
 
@@ -114,7 +117,8 @@ export default function MemberDashboard() {
           </h1>
         )}
         <p className="text-sm text-muted-foreground">
-          {getMonthName(currentMonth)} {currentYear} — Your Financial Overview
+          {activeGroup?.name ? `${activeGroup.name} — ` : ""}
+          {getMonthName(currentMonth)} {currentYear}
         </p>
       </div>
 
@@ -202,7 +206,7 @@ export default function MemberDashboard() {
                   </p>
                   <p className="mt-1.5 font-display text-2xl font-bold text-foreground">
                     {formatCurrency(
-                      settings?.monthlyContribution ?? 0,
+                      activeGroup?.monthlyContribution ?? 0,
                       currency,
                     )}
                   </p>
@@ -241,6 +245,7 @@ export default function MemberDashboard() {
                   onClick={openPay}
                   className="bg-brand hover:bg-brand-dark text-white"
                   data-ocid="member.pay_contribution_button"
+                  disabled={!groupId}
                 >
                   <Receipt className="mr-2 h-4 w-4" />
                   Pay Contribution

@@ -18,10 +18,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useCurrency } from "@/context/CurrencyContext";
+import { useGroup } from "@/context/GroupContext";
 import {
+  useGroupMembers,
   useGroupSummary,
   useLoans,
-  useMembers,
   useRunMonthlyInterest,
 } from "@/hooks/useQueries";
 import {
@@ -98,9 +99,12 @@ function SummaryCard({
 }
 
 export default function AdminDashboard() {
-  const { data: summary, isLoading: summaryLoading } = useGroupSummary();
-  const { data: members, isLoading: membersLoading } = useMembers();
-  const { data: loans, isLoading: loansLoading } = useLoans();
+  const { activeGroup } = useGroup();
+  const groupId = activeGroup?.id;
+
+  const { data: summary, isLoading: summaryLoading } = useGroupSummary(groupId);
+  const { data: members, isLoading: membersLoading } = useGroupMembers(groupId);
+  const { data: loans, isLoading: loansLoading } = useLoans(groupId);
   const runInterest = useRunMonthlyInterest();
 
   const { currency } = useCurrency();
@@ -133,7 +137,9 @@ export default function AdminDashboard() {
           Dashboard
         </h1>
         <p className="text-sm text-muted-foreground">
-          {getMonthName(currentMonth)} {currentYear} — Group Financial Overview
+          {activeGroup
+            ? `${activeGroup.name} — ${getMonthName(currentMonth)} ${currentYear}`
+            : `${getMonthName(currentMonth)} ${currentYear} — Group Financial Overview`}
         </p>
       </div>
 
@@ -196,7 +202,7 @@ export default function AdminDashboard() {
             title="Total Members"
             value={String(summary?.memberCount ?? 0)}
             icon={Users}
-            subtitle="Registered"
+            subtitle="In this group"
             accent="bg-brand-subtle text-brand"
             delay={0.2}
           />
@@ -268,7 +274,7 @@ export default function AdminDashboard() {
                 </Select>
                 <Button
                   onClick={handleRunInterest}
-                  disabled={runInterest.isPending}
+                  disabled={runInterest.isPending || !groupId}
                   className="bg-brand hover:bg-brand-dark text-white"
                   data-ocid="dashboard.primary_button"
                 >
@@ -286,7 +292,7 @@ export default function AdminDashboard() {
       </motion.div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Member Payment Status */}
+        {/* Member Status */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -295,7 +301,7 @@ export default function AdminDashboard() {
           <Card className="shadow-card">
             <CardHeader className="pb-3">
               <CardTitle className="font-display text-base font-semibold">
-                Member Payment Status
+                Member Status
               </CardTitle>
               <p className="text-xs text-muted-foreground">
                 {getMonthName(currentMonth)} {currentYear}
@@ -323,24 +329,24 @@ export default function AdminDashboard() {
                           Status
                         </TableHead>
                         <TableHead className="text-xs font-semibold text-muted-foreground pr-4">
-                          Role
+                          Joined
                         </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {members.slice(0, 8).map((member, i) => (
                         <TableRow
-                          key={member.id}
+                          key={member.memberPrincipal.toText()}
                           data-ocid={`members.item.${i + 1}`}
                           className="hover:bg-muted/40 border-border"
                         >
                           <TableCell className="pl-4 py-3">
                             <div>
                               <p className="text-sm font-medium text-foreground">
-                                {member.name}
+                                {member.memberName || "—"}
                               </p>
                               <p className="text-xs text-muted-foreground">
-                                {member.email}
+                                {member.memberEmail}
                               </p>
                             </div>
                           </TableCell>
@@ -349,10 +355,14 @@ export default function AdminDashboard() {
                               status={member.isActive ? "active" : "inactive"}
                             />
                           </TableCell>
-                          <TableCell className="pr-4">
-                            <span className="text-xs font-medium capitalize text-muted-foreground">
-                              {member.role}
-                            </span>
+                          <TableCell className="pr-4 text-xs text-muted-foreground">
+                            {new Date(
+                              Number(member.joinedAt) / 1_000_000,
+                            ).toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            })}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -369,7 +379,7 @@ export default function AdminDashboard() {
                     No members yet
                   </p>
                   <p className="text-xs text-muted-foreground/60">
-                    Add members from the Members page
+                    Share the group code to invite members
                   </p>
                 </div>
               )}

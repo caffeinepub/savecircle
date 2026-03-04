@@ -2,10 +2,12 @@ import { useAuth } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { useGroup } from "@/context/GroupContext";
 import { useMyProfile } from "@/hooks/useQueries";
 import { cn } from "@/lib/utils";
 import { Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
+  ArrowLeftRight,
   ChevronRight,
   Coins,
   CreditCard,
@@ -83,7 +85,9 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const { logout, principal } = useAuth();
+  const { activeGroup } = useGroup();
   const { data: profile } = useMyProfile();
+  const navigate = useNavigate();
 
   const principalStr = principal?.toString() ?? "";
   const shortPrincipal = principalStr
@@ -101,18 +105,44 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
       {/* Logo */}
-      <div className="flex items-center gap-2.5 px-4 py-5">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand shadow-sm">
-          <Coins className="h-5 w-5 text-white" />
+      <div className="px-4 pt-5 pb-3">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand shadow-sm">
+            <Coins className="h-5 w-5 text-white" />
+          </div>
+          <div>
+            <span className="font-display text-lg font-bold text-sidebar-foreground">
+              SaveCircle
+            </span>
+            <p className="text-[10px] text-sidebar-foreground/50 -mt-0.5">
+              Member Portal
+            </p>
+          </div>
         </div>
-        <div>
-          <span className="font-display text-lg font-bold text-sidebar-foreground">
-            SaveCircle
-          </span>
-          <p className="text-[10px] text-sidebar-foreground/50 -mt-0.5">
-            Member Portal
-          </p>
-        </div>
+        {/* Active group info */}
+        {activeGroup && (
+          <div className="mt-3 rounded-lg bg-sidebar-accent/40 border border-sidebar-border px-3 py-2">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-sidebar-foreground/50 mb-0.5">
+              Active Group
+            </p>
+            <p className="text-sm font-semibold text-sidebar-foreground truncate">
+              {activeGroup.name}
+            </p>
+          </div>
+        )}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            navigate({ to: "/group-hub" });
+            onNavigate?.();
+          }}
+          data-ocid="nav.switch_group_button"
+          className="mt-2 w-full h-7 text-xs text-sidebar-foreground/60 hover:text-sidebar-foreground justify-start px-2 gap-1.5"
+        >
+          <ArrowLeftRight className="h-3 w-3" />
+          Switch Group
+        </Button>
       </div>
 
       <Separator className="bg-sidebar-border" />
@@ -157,7 +187,7 @@ export default function MemberLayout() {
   return (
     <div className="flex h-screen bg-background">
       {/* Desktop sidebar */}
-      <aside className="hidden w-60 shrink-0 border-r border-sidebar-border lg:flex flex-col">
+      <aside className="hidden w-64 shrink-0 border-r border-sidebar-border lg:flex flex-col">
         <SidebarContent />
       </aside>
 
@@ -165,7 +195,7 @@ export default function MemberLayout() {
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetContent
           side="left"
-          className="w-60 p-0 border-r border-sidebar-border"
+          className="w-64 p-0 border-r border-sidebar-border"
         >
           <SidebarContent onNavigate={() => setMobileOpen(false)} />
         </SheetContent>

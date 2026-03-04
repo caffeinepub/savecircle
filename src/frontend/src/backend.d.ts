@@ -15,38 +15,45 @@ export interface GroupSummary {
     activeLoans: bigint;
     monthlyInterestEarned: number;
 }
-export interface Member {
-    id: string;
-    principal: Principal;
-    joinDate: bigint;
-    name: string;
-    role: string;
+export interface GroupMembership {
+    memberPrincipal: Principal;
+    joinedAt: bigint;
     isActive: boolean;
-    email: string;
-    phone: string;
+    memberEmail: string;
+    groupId: string;
+    memberName: string;
+    memberPhone: string;
 }
 export interface Loan {
     id: string;
     status: string;
-    memberId: string;
+    memberPrincipal: Principal;
+    groupId: string;
     outstandingBalance: number;
     interestRatePercent: number;
     principalAmount: number;
     startDate: bigint;
 }
-export interface GroupSettings {
+export interface Group {
+    id: string;
     penaltyRatePercent: number;
+    name: string;
+    createdAt: bigint;
+    createdBy: Principal;
+    description: string;
     interestRatePercent: number;
+    groupCode: string;
     monthlyContribution: number;
 }
 export interface Contribution {
     id: string;
     status: string;
-    memberId: string;
     month: bigint;
+    memberPrincipal: Principal;
     penaltyAmount: number;
     year: bigint;
     paidDate?: bigint;
+    groupId: string;
     amount: number;
 }
 export interface UserProfile {
@@ -56,11 +63,12 @@ export interface UserProfile {
 }
 export interface Transaction {
     id: string;
-    memberId: string;
     transactionType: string;
     relatedLoanId?: string;
     date: bigint;
+    memberPrincipal: Principal;
     description: string;
+    groupId: string;
     amount: number;
 }
 export enum UserRole {
@@ -69,36 +77,37 @@ export enum UserRole {
     guest = "guest"
 }
 export interface backendInterface {
-    addMember(name: string, email: string, phone: string): Promise<Member>;
-    adjustRecord(transactionId: string, newAmount: number, description: string): Promise<Transaction>;
-    applyPenalty(memberId: string, month: bigint, year: bigint, penaltyAmount: number): Promise<Contribution>;
+    adjustRecord(groupId: string, transactionId: string, newAmount: number, description: string): Promise<Transaction>;
+    applyPenalty(groupId: string, memberPrincipal: Principal, month: bigint, year: bigint, penaltyAmount: number): Promise<Contribution>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
-    closeLoan(loanId: string): Promise<Loan>;
-    createLoan(memberId: string, principalAmount: number): Promise<Loan>;
-    deleteMember(id: string): Promise<boolean>;
-    editMember(id: string, name: string, email: string, phone: string, isActive: boolean): Promise<Member>;
-    getAllTransactions(): Promise<Array<Transaction>>;
+    closeLoan(groupId: string, loanId: string): Promise<Loan>;
+    createGroup(name: string, description: string): Promise<Group>;
+    createLoan(groupId: string, memberPrincipal: Principal, principalAmount: number): Promise<Loan>;
+    deleteGroup(groupId: string): Promise<boolean>;
+    getAllTransactions(groupId: string): Promise<Array<Transaction>>;
     getCallerUserProfile(): Promise<UserProfile | null>;
     getCallerUserRole(): Promise<UserRole>;
-    getGroupSettings(): Promise<GroupSettings>;
-    getGroupSummary(): Promise<GroupSummary>;
-    getLoan(id: string): Promise<Loan | null>;
-    getMember(id: string): Promise<Member | null>;
-    getMemberTransactions(memberId: string): Promise<Array<Transaction>>;
-    getMyContributions(): Promise<Array<Contribution>>;
-    getMyLoans(): Promise<Array<Loan>>;
-    getMyOutstandingBalance(): Promise<number>;
-    getMyProfile(): Promise<Member | null>;
-    getMyTransactions(): Promise<Array<Transaction>>;
+    getGroup(groupId: string): Promise<Group | null>;
+    getGroupSummary(groupId: string): Promise<GroupSummary>;
+    getMyContributions(groupId: string): Promise<Array<Contribution>>;
+    getMyGroupProfile(groupId: string): Promise<GroupMembership | null>;
+    getMyLoans(groupId: string): Promise<Array<Loan>>;
+    getMyOutstandingBalance(groupId: string): Promise<number>;
+    getMyTransactions(groupId: string): Promise<Array<Transaction>>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
     isCallerAdmin(): Promise<boolean>;
-    listLoans(): Promise<Array<Loan>>;
-    listMembers(): Promise<Array<Member>>;
-    payContribution(amount: number, month: bigint, year: bigint): Promise<Contribution>;
-    payLoanInterest(loanId: string, amount: number): Promise<Transaction>;
-    recordContribution(memberId: string, amount: number, month: bigint, year: bigint): Promise<Contribution>;
-    repayPrincipal(loanId: string, amount: number): Promise<Loan>;
-    runMonthlyInterestCalculation(month: bigint, year: bigint): Promise<Array<Transaction>>;
+    joinGroup(groupCode: string): Promise<Group>;
+    leaveGroup(groupId: string): Promise<boolean>;
+    listGroupMembers(groupId: string): Promise<Array<GroupMembership>>;
+    listLoans(groupId: string): Promise<Array<Loan>>;
+    listMyGroups(): Promise<Array<Group>>;
+    payContribution(groupId: string, amount: number, month: bigint, year: bigint): Promise<Contribution>;
+    payLoanInterest(groupId: string, loanId: string, amount: number): Promise<Transaction>;
+    recordContribution(groupId: string, memberPrincipal: Principal, amount: number, month: bigint, year: bigint): Promise<Contribution>;
+    removeMember(groupId: string, memberPrincipal: Principal): Promise<boolean>;
+    repayPrincipal(groupId: string, loanId: string, amount: number): Promise<Loan>;
+    runMonthlyInterestCalculation(groupId: string, month: bigint, year: bigint): Promise<Array<Transaction>>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
-    updateGroupSettings(monthlyContribution: number, interestRatePercent: number, penaltyRatePercent: number): Promise<GroupSettings>;
+    updateGroupSettings(groupId: string, monthlyContribution: number, interestRatePercent: number, penaltyRatePercent: number): Promise<Group>;
+    updateMemberStatus(groupId: string, memberPrincipal: Principal, isActive: boolean): Promise<GroupMembership>;
 }

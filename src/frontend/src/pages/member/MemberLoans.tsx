@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCurrency } from "@/context/CurrencyContext";
+import { useGroup } from "@/context/GroupContext";
 import {
   useMyLoans,
   usePayLoanInterest,
@@ -27,7 +28,10 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 export default function MemberLoans() {
-  const { data: loans, isLoading } = useMyLoans();
+  const { activeGroup } = useGroup();
+  const groupId = activeGroup?.id;
+
+  const { data: loans, isLoading } = useMyLoans(groupId);
   const payInterest = usePayLoanInterest();
   const repayPrincipal = useRepayPrincipal();
 
@@ -220,7 +224,7 @@ export default function MemberLoans() {
                               variant="outline"
                               size="sm"
                               onClick={() => openInterest(loan)}
-                              data-ocid="member.pay_interest_button"
+                              data-ocid={`member.pay_interest_button.${i + 1}`}
                               className="border-brand/30 text-brand hover:bg-brand hover:text-white"
                             >
                               <TrendingDown className="mr-1.5 h-3.5 w-3.5" />
@@ -230,7 +234,7 @@ export default function MemberLoans() {
                               variant="outline"
                               size="sm"
                               onClick={() => openPrincipal(loan)}
-                              data-ocid="member.repay_principal_button"
+                              data-ocid={`member.repay_principal_button.${i + 1}`}
                               className="border-brand/30 text-brand hover:bg-brand hover:text-white"
                             >
                               <RefreshCw className="mr-1.5 h-3.5 w-3.5" />

@@ -1,241 +1,283 @@
 import { useAuth } from "@/auth";
+import type { Group, GroupMembership, UserProfile } from "@/backend.d";
+import { useGroup } from "@/context/GroupContext";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useActor } from "./useActor";
 
-// ─── Group Summary ────────────────────────────────────────────────────────────
-export function useGroupSummary() {
+// ─── My Groups ────────────────────────────────────────────────────────────────
+export function useMyGroups() {
   const { actor, isFetching } = useActor();
-  return useQuery({
-    queryKey: ["groupSummary"],
-    queryFn: async () => {
-      if (!actor) return null;
-      return actor.getGroupSummary();
-    },
-    enabled: !!actor && !isFetching,
-  });
-}
-
-// ─── Members ─────────────────────────────────────────────────────────────────
-export function useMembers() {
-  const { actor, isFetching } = useActor();
-  return useQuery({
-    queryKey: ["members"],
+  return useQuery<Group[]>({
+    queryKey: ["myGroups"],
     queryFn: async () => {
       if (!actor) return [];
-      return actor.listMembers();
+      return actor.listMyGroups();
     },
     enabled: !!actor && !isFetching,
   });
 }
 
-export function useAddMember() {
+export function useCreateGroup() {
   const { actor } = useActor();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({
       name,
-      email,
-      phone,
-    }: { name: string; email: string; phone: string }) => {
+      description,
+    }: { name: string; description: string }) => {
       if (!actor) throw new Error("Not connected");
-      return actor.addMember(name, email, phone);
+      return actor.createGroup(name, description);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["members"] });
-      qc.invalidateQueries({ queryKey: ["groupSummary"] });
+      qc.invalidateQueries({ queryKey: ["myGroups"] });
     },
   });
 }
 
-export function useEditMember() {
+export function useJoinGroup() {
   const { actor } = useActor();
   const qc = useQueryClient();
   return useMutation({
+    mutationFn: async (groupCode: string) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.joinGroup(groupCode);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["myGroups"] });
+    },
+  });
+}
+
+export function useLeaveGroup() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (groupId: string) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.leaveGroup(groupId);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["myGroups"] });
+    },
+  });
+}
+
+export function useDeleteGroup() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (groupId: string) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.deleteGroup(groupId);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["myGroups"] });
+    },
+  });
+}
+
+// ─── Group Summary ────────────────────────────────────────────────────────────
+export function useGroupSummary(groupId?: string) {
+  const { actor, isFetching } = useActor();
+  return useQuery({
+    queryKey: ["groupSummary", groupId],
+    queryFn: async () => {
+      if (!actor || !groupId) return null;
+      return actor.getGroupSummary(groupId);
+    },
+    enabled: !!actor && !isFetching && !!groupId,
+  });
+}
+
+// ─── Group Members ────────────────────────────────────────────────────────────
+export function useGroupMembers(groupId?: string) {
+  const { actor, isFetching } = useActor();
+  return useQuery<GroupMembership[]>({
+    queryKey: ["groupMembers", groupId],
+    queryFn: async () => {
+      if (!actor || !groupId) return [];
+      return actor.listGroupMembers(groupId);
+    },
+    enabled: !!actor && !isFetching && !!groupId,
+  });
+}
+
+export function useRemoveMember() {
+  const { actor } = useActor();
+  const { activeGroup } = useGroup();
+  const qc = useQueryClient();
+  return useMutation({
     mutationFn: async ({
-      id,
-      name,
-      email,
-      phone,
+      memberPrincipal,
+    }: { memberPrincipal: import("@icp-sdk/core/principal").Principal }) => {
+      if (!actor || !activeGroup) throw new Error("Not connected");
+      return actor.removeMember(activeGroup.id, memberPrincipal);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["groupMembers", activeGroup?.id] });
+      qc.invalidateQueries({ queryKey: ["groupSummary", activeGroup?.id] });
+    },
+  });
+}
+
+export function useUpdateMemberStatus() {
+  const { actor } = useActor();
+  const { activeGroup } = useGroup();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      memberPrincipal,
       isActive,
     }: {
-      id: string;
-      name: string;
-      email: string;
-      phone: string;
+      memberPrincipal: import("@icp-sdk/core/principal").Principal;
       isActive: boolean;
     }) => {
-      if (!actor) throw new Error("Not connected");
-      return actor.editMember(id, name, email, phone, isActive);
+      if (!actor || !activeGroup) throw new Error("Not connected");
+      return actor.updateMemberStatus(
+        activeGroup.id,
+        memberPrincipal,
+        isActive,
+      );
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["members"] });
-    },
-  });
-}
-
-export function useDeleteMember() {
-  const { actor } = useActor();
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (id: string) => {
-      if (!actor) throw new Error("Not connected");
-      return actor.deleteMember(id);
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["members"] });
-      qc.invalidateQueries({ queryKey: ["groupSummary"] });
+      qc.invalidateQueries({ queryKey: ["groupMembers", activeGroup?.id] });
     },
   });
 }
 
 // ─── Loans ────────────────────────────────────────────────────────────────────
-export function useLoans() {
+export function useLoans(groupId?: string) {
   const { actor, isFetching } = useActor();
   return useQuery({
-    queryKey: ["loans"],
+    queryKey: ["loans", groupId],
     queryFn: async () => {
-      if (!actor) return [];
-      return actor.listLoans();
+      if (!actor || !groupId) return [];
+      return actor.listLoans(groupId);
     },
-    enabled: !!actor && !isFetching,
+    enabled: !!actor && !isFetching && !!groupId,
   });
 }
 
 export function useCreateLoan() {
   const { actor } = useActor();
+  const { activeGroup } = useGroup();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({
-      memberId,
+      memberPrincipal,
       principalAmount,
-    }: { memberId: string; principalAmount: number }) => {
-      if (!actor) throw new Error("Not connected");
-      return actor.createLoan(memberId, principalAmount);
+    }: {
+      memberPrincipal: import("@icp-sdk/core/principal").Principal;
+      principalAmount: number;
+    }) => {
+      if (!actor || !activeGroup) throw new Error("Not connected");
+      return actor.createLoan(activeGroup.id, memberPrincipal, principalAmount);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["loans"] });
-      qc.invalidateQueries({ queryKey: ["groupSummary"] });
+      qc.invalidateQueries({ queryKey: ["loans", activeGroup?.id] });
+      qc.invalidateQueries({ queryKey: ["groupSummary", activeGroup?.id] });
     },
   });
 }
 
 export function useCloseLoan() {
   const { actor } = useActor();
+  const { activeGroup } = useGroup();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (loanId: string) => {
-      if (!actor) throw new Error("Not connected");
-      return actor.closeLoan(loanId);
+      if (!actor || !activeGroup) throw new Error("Not connected");
+      return actor.closeLoan(activeGroup.id, loanId);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["loans"] });
-      qc.invalidateQueries({ queryKey: ["groupSummary"] });
+      qc.invalidateQueries({ queryKey: ["loans", activeGroup?.id] });
+      qc.invalidateQueries({ queryKey: ["groupSummary", activeGroup?.id] });
     },
   });
 }
 
 // ─── Contributions ────────────────────────────────────────────────────────────
-export function useAllContributions() {
-  const { actor, isFetching } = useActor();
-  return useQuery({
-    queryKey: ["allContributions"],
-    queryFn: async () => {
-      if (!actor) return [];
-      // Get contributions for all members via their transactions
-      const members = await actor.listMembers();
-      const results = await Promise.all(
-        members.map((m) => actor.getMemberTransactions(m.id)),
-      );
-      return { members, transactions: results.flat() };
-    },
-    enabled: !!actor && !isFetching,
-  });
-}
-
 export function useRecordContribution() {
   const { actor } = useActor();
+  const { activeGroup } = useGroup();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({
-      memberId,
+      memberPrincipal,
       amount,
       month,
       year,
-    }: { memberId: string; amount: number; month: number; year: number }) => {
-      if (!actor) throw new Error("Not connected");
+    }: {
+      memberPrincipal: import("@icp-sdk/core/principal").Principal;
+      amount: number;
+      month: number;
+      year: number;
+    }) => {
+      if (!actor || !activeGroup) throw new Error("Not connected");
       return actor.recordContribution(
-        memberId,
+        activeGroup.id,
+        memberPrincipal,
         amount,
         BigInt(month),
         BigInt(year),
       );
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["allContributions"] });
-      qc.invalidateQueries({ queryKey: ["transactions"] });
-      qc.invalidateQueries({ queryKey: ["groupSummary"] });
+      qc.invalidateQueries({ queryKey: ["allTransactions", activeGroup?.id] });
+      qc.invalidateQueries({ queryKey: ["groupSummary", activeGroup?.id] });
     },
   });
 }
 
 export function useApplyPenalty() {
   const { actor } = useActor();
+  const { activeGroup } = useGroup();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({
-      memberId,
+      memberPrincipal,
       month,
       year,
       penaltyAmount,
     }: {
-      memberId: string;
+      memberPrincipal: import("@icp-sdk/core/principal").Principal;
       month: number;
       year: number;
       penaltyAmount: number;
     }) => {
-      if (!actor) throw new Error("Not connected");
+      if (!actor || !activeGroup) throw new Error("Not connected");
       return actor.applyPenalty(
-        memberId,
+        activeGroup.id,
+        memberPrincipal,
         BigInt(month),
         BigInt(year),
         penaltyAmount,
       );
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["allContributions"] });
-      qc.invalidateQueries({ queryKey: ["groupSummary"] });
+      qc.invalidateQueries({ queryKey: ["allTransactions", activeGroup?.id] });
+      qc.invalidateQueries({ queryKey: ["groupSummary", activeGroup?.id] });
     },
   });
 }
 
 // ─── Transactions ─────────────────────────────────────────────────────────────
-export function useAllTransactions() {
+export function useAllTransactions(groupId?: string) {
   const { actor, isFetching } = useActor();
   return useQuery({
-    queryKey: ["transactions"],
+    queryKey: ["allTransactions", groupId],
     queryFn: async () => {
-      if (!actor) return [];
-      return actor.getAllTransactions();
+      if (!actor || !groupId) return [];
+      return actor.getAllTransactions(groupId);
     },
-    enabled: !!actor && !isFetching,
+    enabled: !!actor && !isFetching && !!groupId,
   });
 }
 
 // ─── Settings ─────────────────────────────────────────────────────────────────
-export function useGroupSettings() {
-  const { actor, isFetching } = useActor();
-  return useQuery({
-    queryKey: ["groupSettings"],
-    queryFn: async () => {
-      if (!actor) return null;
-      return actor.getGroupSettings();
-    },
-    enabled: !!actor && !isFetching,
-  });
-}
-
 export function useUpdateGroupSettings() {
   const { actor } = useActor();
+  const { activeGroup } = useGroup();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({
@@ -247,103 +289,141 @@ export function useUpdateGroupSettings() {
       interestRatePercent: number;
       penaltyRatePercent: number;
     }) => {
-      if (!actor) throw new Error("Not connected");
+      if (!actor || !activeGroup) throw new Error("Not connected");
       return actor.updateGroupSettings(
+        activeGroup.id,
         monthlyContribution,
         interestRatePercent,
         penaltyRatePercent,
       );
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["groupSettings"] });
+      qc.invalidateQueries({ queryKey: ["myGroups"] });
     },
   });
 }
 
 export function useRunMonthlyInterest() {
   const { actor } = useActor();
+  const { activeGroup } = useGroup();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ month, year }: { month: number; year: number }) => {
-      if (!actor) throw new Error("Not connected");
-      return actor.runMonthlyInterestCalculation(BigInt(month), BigInt(year));
+      if (!actor || !activeGroup) throw new Error("Not connected");
+      return actor.runMonthlyInterestCalculation(
+        activeGroup.id,
+        BigInt(month),
+        BigInt(year),
+      );
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["transactions"] });
-      qc.invalidateQueries({ queryKey: ["loans"] });
-      qc.invalidateQueries({ queryKey: ["groupSummary"] });
+      qc.invalidateQueries({ queryKey: ["allTransactions", activeGroup?.id] });
+      qc.invalidateQueries({ queryKey: ["loans", activeGroup?.id] });
+      qc.invalidateQueries({ queryKey: ["groupSummary", activeGroup?.id] });
     },
   });
 }
 
-// ─── Member self-service ──────────────────────────────────────────────────────
-export function useMyProfile() {
+// ─── User Profile ─────────────────────────────────────────────────────────────
+export function useUserProfile() {
   const { actor, isFetching } = useActor();
   const { isAuthenticated } = useAuth();
-  return useQuery({
-    queryKey: ["myProfile"],
+  return useQuery<UserProfile | null>({
+    queryKey: ["userProfile"],
     queryFn: async () => {
       if (!actor) return null;
-      return actor.getMyProfile();
+      return actor.getCallerUserProfile();
     },
     enabled: !!actor && !isFetching && isAuthenticated,
   });
 }
 
-export function useMyLoans() {
-  const { actor, isFetching } = useActor();
-  const { isAuthenticated } = useAuth();
-  return useQuery({
-    queryKey: ["myLoans"],
-    queryFn: async () => {
-      if (!actor) return [];
-      return actor.getMyLoans();
+export function useSaveUserProfile() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (profile: UserProfile) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.saveCallerUserProfile(profile);
     },
-    enabled: !!actor && !isFetching && isAuthenticated,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["userProfile"] });
+    },
   });
 }
 
-export function useMyContributions() {
+// Keep alias for backward compat in MemberLayout
+export const useMyProfile = useUserProfile;
+
+// ─── Member Self-Service ──────────────────────────────────────────────────────
+export function useMyGroupProfile(groupId?: string) {
   const { actor, isFetching } = useActor();
   const { isAuthenticated } = useAuth();
   return useQuery({
-    queryKey: ["myContributions"],
+    queryKey: ["myGroupProfile", groupId],
     queryFn: async () => {
-      if (!actor) return [];
-      return actor.getMyContributions();
+      if (!actor || !groupId) return null;
+      return actor.getMyGroupProfile(groupId);
     },
-    enabled: !!actor && !isFetching && isAuthenticated,
+    enabled: !!actor && !isFetching && isAuthenticated && !!groupId,
   });
 }
 
-export function useMyTransactions() {
+export function useMyLoans(groupId?: string) {
   const { actor, isFetching } = useActor();
   const { isAuthenticated } = useAuth();
   return useQuery({
-    queryKey: ["myTransactions"],
+    queryKey: ["myLoans", groupId],
     queryFn: async () => {
-      if (!actor) return [];
-      return actor.getMyTransactions();
+      if (!actor || !groupId) return [];
+      return actor.getMyLoans(groupId);
     },
-    enabled: !!actor && !isFetching && isAuthenticated,
+    enabled: !!actor && !isFetching && isAuthenticated && !!groupId,
   });
 }
 
-export function useMyOutstandingBalance() {
+export function useMyContributions(groupId?: string) {
   const { actor, isFetching } = useActor();
   const { isAuthenticated } = useAuth();
   return useQuery({
-    queryKey: ["myOutstandingBalance"],
+    queryKey: ["myContributions", groupId],
     queryFn: async () => {
-      if (!actor) return 0;
-      return actor.getMyOutstandingBalance();
+      if (!actor || !groupId) return [];
+      return actor.getMyContributions(groupId);
     },
-    enabled: !!actor && !isFetching && isAuthenticated,
+    enabled: !!actor && !isFetching && isAuthenticated && !!groupId,
+  });
+}
+
+export function useMyTransactions(groupId?: string) {
+  const { actor, isFetching } = useActor();
+  const { isAuthenticated } = useAuth();
+  return useQuery({
+    queryKey: ["myTransactions", groupId],
+    queryFn: async () => {
+      if (!actor || !groupId) return [];
+      return actor.getMyTransactions(groupId);
+    },
+    enabled: !!actor && !isFetching && isAuthenticated && !!groupId,
+  });
+}
+
+export function useMyOutstandingBalance(groupId?: string) {
+  const { actor, isFetching } = useActor();
+  const { isAuthenticated } = useAuth();
+  return useQuery({
+    queryKey: ["myOutstandingBalance", groupId],
+    queryFn: async () => {
+      if (!actor || !groupId) return 0;
+      return actor.getMyOutstandingBalance(groupId);
+    },
+    enabled: !!actor && !isFetching && isAuthenticated && !!groupId,
   });
 }
 
 export function usePayContribution() {
   const { actor } = useActor();
+  const { activeGroup } = useGroup();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({
@@ -351,50 +431,61 @@ export function usePayContribution() {
       month,
       year,
     }: { amount: number; month: number; year: number }) => {
-      if (!actor) throw new Error("Not connected");
-      return actor.payContribution(amount, BigInt(month), BigInt(year));
+      if (!actor || !activeGroup) throw new Error("Not connected");
+      return actor.payContribution(
+        activeGroup.id,
+        amount,
+        BigInt(month),
+        BigInt(year),
+      );
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["myContributions"] });
-      qc.invalidateQueries({ queryKey: ["myTransactions"] });
+      qc.invalidateQueries({ queryKey: ["myContributions", activeGroup?.id] });
+      qc.invalidateQueries({ queryKey: ["myTransactions", activeGroup?.id] });
     },
   });
 }
 
 export function usePayLoanInterest() {
   const { actor } = useActor();
+  const { activeGroup } = useGroup();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({
       loanId,
       amount,
     }: { loanId: string; amount: number }) => {
-      if (!actor) throw new Error("Not connected");
-      return actor.payLoanInterest(loanId, amount);
+      if (!actor || !activeGroup) throw new Error("Not connected");
+      return actor.payLoanInterest(activeGroup.id, loanId, amount);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["myLoans"] });
-      qc.invalidateQueries({ queryKey: ["myTransactions"] });
-      qc.invalidateQueries({ queryKey: ["myOutstandingBalance"] });
+      qc.invalidateQueries({ queryKey: ["myLoans", activeGroup?.id] });
+      qc.invalidateQueries({ queryKey: ["myTransactions", activeGroup?.id] });
+      qc.invalidateQueries({
+        queryKey: ["myOutstandingBalance", activeGroup?.id],
+      });
     },
   });
 }
 
 export function useRepayPrincipal() {
   const { actor } = useActor();
+  const { activeGroup } = useGroup();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({
       loanId,
       amount,
     }: { loanId: string; amount: number }) => {
-      if (!actor) throw new Error("Not connected");
-      return actor.repayPrincipal(loanId, amount);
+      if (!actor || !activeGroup) throw new Error("Not connected");
+      return actor.repayPrincipal(activeGroup.id, loanId, amount);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["myLoans"] });
-      qc.invalidateQueries({ queryKey: ["myTransactions"] });
-      qc.invalidateQueries({ queryKey: ["myOutstandingBalance"] });
+      qc.invalidateQueries({ queryKey: ["myLoans", activeGroup?.id] });
+      qc.invalidateQueries({ queryKey: ["myTransactions", activeGroup?.id] });
+      qc.invalidateQueries({
+        queryKey: ["myOutstandingBalance", activeGroup?.id],
+      });
     },
   });
 }
