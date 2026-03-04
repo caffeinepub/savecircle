@@ -1,0 +1,167 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* SaveCircle — Fintech SaaS Design System */
+/* Orange (#F97316) + White + Slate-900 Sidebar */
+
+@font-face {
+  font-family: "Cabinet Grotesk";
+  src: url("/assets/fonts/CabinetGrotesk-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "General Sans";
+  src: url("/assets/fonts/GeneralSans-Variable.woff2") format("woff2");
+  font-weight: 200 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@layer base {
+  :root {
+    --radius: 0.5rem;
+
+    /* Brand: Orange #F97316 → OKLCH(0.705 0.213 47.6) */
+    --brand: 0.705 0.213 47.6;
+    --brand-dark: 0.62 0.21 47.6;
+    --brand-light: 0.82 0.15 47.6;
+    --brand-subtle: 0.97 0.04 47.6;
+
+    /* Backgrounds */
+    --background: 0.985 0 0;
+    --background-alt: 0.972 0.004 47.6;
+
+    /* Foregrounds */
+    --foreground: 0.145 0 0;
+    --foreground-muted: 0.45 0 0;
+
+    /* Cards */
+    --card: 1 0 0;
+    --card-foreground: 0.145 0 0;
+
+    /* Popovers */
+    --popover: 1 0 0;
+    --popover-foreground: 0.145 0 0;
+
+    /* Primary (orange brand) */
+    --primary: 0.705 0.213 47.6;
+    --primary-foreground: 1 0 0;
+
+    /* Secondary (slate-100) */
+    --secondary: 0.96 0.005 264.5;
+    --secondary-foreground: 0.24 0.012 264.5;
+
+    /* Muted */
+    --muted: 0.96 0.005 264.5;
+    --muted-foreground: 0.52 0.012 264.5;
+
+    /* Accent */
+    --accent: 0.97 0.04 47.6;
+    --accent-foreground: 0.62 0.21 47.6;
+
+    /* Destructive */
+    --destructive: 0.577 0.245 27.325;
+    --destructive-foreground: 0.985 0 0;
+
+    /* Success */
+    --success: 0.64 0.16 149;
+    --success-foreground: 1 0 0;
+
+    /* Warning */
+    --warning: 0.82 0.15 85;
+    --warning-foreground: 0.2 0 0;
+
+    /* Info */
+    --info: 0.6 0.15 232;
+    --info-foreground: 1 0 0;
+
+    /* Borders */
+    --border: 0.9 0.006 264.5;
+    --input: 0.9 0.006 264.5;
+    --ring: 0.705 0.213 47.6;
+
+    /* Charts */
+    --chart-1: 0.705 0.213 47.6;
+    --chart-2: 0.64 0.16 149;
+    --chart-3: 0.6 0.15 232;
+    --chart-4: 0.627 0.265 303.9;
+    --chart-5: 0.577 0.245 27.325;
+
+    /* Sidebar (dark slate) */
+    --sidebar: 0.145 0.008 264.5;
+    --sidebar-foreground: 0.92 0.005 264.5;
+    --sidebar-primary: 0.705 0.213 47.6;
+    --sidebar-primary-foreground: 1 0 0;
+    --sidebar-accent: 0.22 0.01 264.5;
+    --sidebar-accent-foreground: 0.92 0.005 264.5;
+    --sidebar-border: 0.25 0.01 264.5;
+    --sidebar-ring: 0.705 0.213 47.6;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: "General Sans", system-ui, sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: "Cabinet Grotesk", system-ui, sans-serif;
+    font-weight: 700;
+  }
+}
+
+/* Utility classes for brand colors */
+@layer utilities {
+  .text-brand {
+    color: oklch(var(--brand));
+  }
+  .bg-brand {
+    background-color: oklch(var(--brand));
+  }
+  .bg-brand-subtle {
+    background-color: oklch(var(--brand-subtle));
+  }
+  .border-brand {
+    border-color: oklch(var(--brand));
+  }
+  .text-success {
+    color: oklch(var(--success));
+  }
+  .bg-success {
+    background-color: oklch(var(--success));
+  }
+  .bg-success-subtle {
+    background-color: oklch(0.95 0.04 149);
+  }
+  .text-success-fg {
+    color: oklch(0.3 0.1 149);
+  }
+  .bg-warning-subtle {
+    background-color: oklch(0.97 0.06 85);
+  }
+  .text-warning-fg {
+    color: oklch(0.45 0.12 75);
+  }
+  .bg-info-subtle {
+    background-color: oklch(0.95 0.04 232);
+  }
+  .text-info-fg {
+    color: oklch(0.38 0.1 232);
+  }
+  .bg-destructive-subtle {
+    background-color: oklch(0.96 0.04 27.325);
+  }
+  .text-destructive-fg {
+    color: oklch(0.45 0.18 27.325);
+  }
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+}
