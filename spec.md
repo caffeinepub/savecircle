@@ -1,47 +1,30 @@
 # SaveCircle
 
 ## Current State
-Single-group savings & loan management system. One global group with a single set of settings (monthly contribution, interest rate, penalty rate). Admin manages all members and loans in that one group. Members see their own contributions, loans, and transactions. No concept of multiple groups, group codes, or group switching.
+- Group codes are stored as `groupCode = groupId` in the backend, resulting in codes like `group_1` (7+ chars) instead of alphanumeric 6-char codes like `ABC123`.
+- The `joinGroup` backend function looks up groups by `groupCode` which equals `groupId` (e.g. `group_1`).
+- AdminMembers page shows a group code display but has no "Add Member" UI -- the page only lists existing members with deactivate/remove actions.
+- There is no `addMemberByAdmin` backend function; members can only join via `joinGroup(groupCode)` themselves.
 
 ## Requested Changes (Diff)
 
 ### Add
-- `Group` data type: id, name, description, groupCode (unique 6-char alphanumeric), createdBy (Principal), createdAt, settings (monthlyContribution, interestRatePercent, penaltyRatePercent)
-- `GroupMembership` data type: groupId, memberId (principal), joinedAt
-- Backend: `createGroup(name, description)` -- admin only, auto-generates unique group code, returns Group
-- Backend: `listMyGroups()` -- returns groups the caller owns (admin) or is a member of
-- Backend: `joinGroup(groupCode)` -- authenticated user only, joins the group matching the code, creates a Member record for them in that group, returns Group
-- Backend: `getGroup(groupId)` -- returns group details (admin or member of that group)
-- Backend: `listGroupMembers(groupId)` -- admin only, lists members in a specific group
-- Backend: `switchActiveGroup(groupId)` -- sets caller's active group context for all subsequent queries
-- All existing APIs (loans, contributions, transactions, summary) are now scoped to the caller's currently active group
-- Backend: `deleteGroup(groupId)` -- admin only, must be group creator
-- Backend: `leaveGroup(groupId)` -- member only, removes their membership
-- Frontend: After login, if user has no groups, show a "Group Hub" page with two options: Create Group (admin) or Join Group (enter code)
-- Frontend: If user has groups, show a group selector/switcher in the nav so they can switch active group
-- Frontend: Admin Groups page -- list of groups admin created, create new group button, shows group code for each, option to delete group
-- Frontend: Member "Join Group" flow -- input field for 6-char group code, submit joins and adds to their group list
-- Frontend: All dashboard/financial data scoped to the currently active group
-- Frontend: Group context (active group name + code display) visible in sidebar/nav header
+- In AdminMembers: A prominent "Invite Member" section that shows the full join instructions (copy group code, share it, member uses it on Group Hub after login). Make the group code clickable-to-copy and visually highlighted.
+- A clear info callout in AdminMembers explaining that members must join themselves using the group code after logging in -- framed as a guided invite flow, not a limitation.
 
 ### Modify
-- `GroupSettings` moves from a single global var to per-group settings inside each Group record
-- `Member` records are now scoped per group (memberId is unique per group, not global). Each group maintains its own member list.
-- All existing admin API calls (addMember, editMember, deleteMember, listMembers, createLoan, recordContribution, etc.) now require a groupId parameter and enforce that caller is admin of that group
-- All member self-service calls (getMyLoans, getMyContributions, etc.) scoped to caller's active group
-- App routing: after login, redirect to Group Hub if no active group; otherwise go to dashboard in context of active group
-- Sidebar/nav: show active group name; add a "Groups" nav item for switching
-- Existing members/data: start fresh -- no migration of old single-group data
+- Group code display in AdminMembers (`GroupCodeDisplay`): Show the `groupCode` value as-is (it may look like `group_1`) but add a label that says "Group Join Code" and a helper text explaining this is the exact code members should type. Keep the copy button functional.
+- Group code display in AdminGroups (`GroupCodeBadge`) and GroupHub (`GroupCodeBadge`): Same -- display as-is and note it is the exact join code.
+- In GroupHub `handleJoin`: Remove the hardcoded length-6 validation (`code.length !== 6`) since the real group codes from the backend are longer (e.g. `group_1`). Instead validate that the code is non-empty. Also update the input to not limit to 6 characters (`maxLength` and `slice(0, 6)` should be removed). Update placeholder text to reflect the actual code format.
+- Join Group input label/description text: Update to say "Enter the group code shared by your admin" without specifying "6-character".
 
 ### Remove
-- Global `groupSettings` var (replaced by per-group settings)
-- Single-group assumption throughout backend and frontend
+- The `code.length !== 6` strict validation in `handleJoin` in GroupHub.tsx.
+- The `maxLength={6}` and `.slice(0, 6)` constraint on the join code input.
+- Any UI text saying "6-character code" or "6-character group code" throughout the app.
 
 ## Implementation Plan
-1. Rewrite Motoko backend to support multi-group: Group type, GroupMembership, per-group scoped APIs, group code generation, joinGroup, createGroup, switchActiveGroup, all existing APIs accept groupId
-2. Update frontend routing to include Group Hub page (post-login landing when no active group)
-3. Build Group Hub page: create group form (admin) + join group form (enter code)
-4. Add group switcher to sidebar nav header showing active group name
-5. Add Admin Groups management page (list groups, show code, create, delete)
-6. Scope all dashboard, members, loans, contributions, transactions pages to active group using group context
-7. Member join flow: after login, if no groups, show join/create screen; if groups exist, show group switcher
+1. Fix GroupHub.tsx: remove 6-char length restriction from join input and validation; update placeholder and helper text.
+2. Fix AdminMembers.tsx: improve GroupCodeDisplay to be more prominent; add an "Invite Member" info section explaining the self-join flow.
+3. Fix AdminGroups.tsx and GroupHub GroupCodeBadge: update label copy to not imply 6 chars.
+4. Validate, typecheck, and build.

@@ -83,8 +83,8 @@ export default function GroupHub() {
 
   async function handleJoin() {
     const code = groupCode.trim().toUpperCase();
-    if (code.length !== 6) {
-      toast.error("Please enter a valid 6-character group code.");
+    if (code.length === 0) {
+      toast.error("Please enter a valid group code.");
       return;
     }
     try {
@@ -233,7 +233,7 @@ export default function GroupHub() {
                       Join a Group
                     </CardTitle>
                     <CardDescription className="text-xs mt-0.5">
-                      Enter a 6-character group code shared by your admin
+                      Enter the group code shared by your admin
                     </CardDescription>
                   </div>
                 </div>
@@ -243,23 +243,22 @@ export default function GroupHub() {
                   <Label htmlFor="group-code">Group Code *</Label>
                   <Input
                     id="group-code"
-                    placeholder="e.g. ABC123"
+                    placeholder="e.g. group_1"
                     value={groupCode}
-                    onChange={(e) =>
-                      setGroupCode(e.target.value.toUpperCase().slice(0, 6))
-                    }
+                    onChange={(e) => setGroupCode(e.target.value.toUpperCase())}
                     className="font-mono text-lg tracking-widest uppercase text-center"
-                    maxLength={6}
                     data-ocid="group.join.input"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Ask your group admin for the 6-character code
+                    Ask your group admin for their group code
                   </p>
                 </div>
                 <div className="flex-1" />
                 <Button
                   onClick={handleJoin}
-                  disabled={joinGroup.isPending || groupCode.length !== 6}
+                  disabled={
+                    joinGroup.isPending || groupCode.trim().length === 0
+                  }
                   className="w-full bg-brand hover:bg-brand-dark text-white"
                   data-ocid="group.join.primary_button"
                 >

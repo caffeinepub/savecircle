@@ -197,7 +197,7 @@ export default function AdminGroups() {
                     )}
                     <div>
                       <p className="text-xs text-muted-foreground mb-1.5">
-                        Group Code — share with members to invite them
+                        Join Code — share with members to invite
                       </p>
                       <GroupCodeBadge code={group.groupCode} />
                     </div>

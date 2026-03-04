@@ -27,39 +27,101 @@ import {
   useRemoveMember,
   useUpdateMemberStatus,
 } from "@/hooks/useQueries";
-import { Loader2, Search, Share2, Trash2, Users } from "lucide-react";
+import {
+  Check,
+  Copy,
+  Info,
+  Loader2,
+  Search,
+  Share2,
+  Trash2,
+  Users,
+} from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 function GroupCodeDisplay({ code }: { code: string }) {
+  const [copied, setCopied] = useState(false);
+
   function handleCopy() {
     navigator.clipboard.writeText(code);
+    setCopied(true);
     toast.success("Group code copied to clipboard!");
+    setTimeout(() => setCopied(false), 2000);
   }
 
   return (
-    <div className="rounded-lg border border-brand/20 bg-brand-subtle p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-      <div className="flex items-center gap-3">
-        <Share2 className="h-4 w-4 text-brand shrink-0" />
-        <div>
-          <p className="text-sm font-medium text-foreground">
-            Invite members with your group code
+    <div className="space-y-3">
+      {/* Code Card */}
+      <div className="rounded-xl border-2 border-brand/25 bg-gradient-to-r from-brand-subtle to-orange-50 p-5">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand/10 shrink-0">
+              <Share2 className="h-5 w-5 text-brand" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-foreground">
+                Group Join Code
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Share this code with anyone you want to invite
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleCopy}
+            className={`flex items-center gap-2.5 rounded-lg border-2 px-5 py-3 font-mono text-xl font-bold tracking-widest cursor-pointer transition-all duration-200 ${
+              copied
+                ? "border-green-500 bg-green-50 text-green-700"
+                : "border-brand/40 bg-white text-brand hover:bg-brand-subtle hover:border-brand/60"
+            }`}
+            title="Click to copy"
+            data-ocid="members.code.button"
+          >
+            <span>{code}</span>
+            {copied ? (
+              <Check className="h-4 w-4 text-green-600 shrink-0" />
+            ) : (
+              <Copy className="h-4 w-4 shrink-0 opacity-60" />
+            )}
+          </button>
+        </div>
+        {copied && (
+          <p className="text-xs text-green-600 font-medium mt-2 sm:text-right">
+            ✓ Code copied to clipboard
           </p>
-          <p className="text-xs text-muted-foreground">
-            Share this code with people you want to join this group
-          </p>
+        )}
+      </div>
+
+      {/* How to invite members callout */}
+      <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3.5">
+        <div className="flex items-start gap-2.5">
+          <Info className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-xs font-semibold text-blue-800 mb-1.5">
+              How to invite members
+            </p>
+            <ol className="space-y-1 text-xs text-blue-700 list-none">
+              <li className="flex items-start gap-1.5">
+                <span className="font-bold shrink-0">1.</span>
+                <span>
+                  Share the group code above with the person you want to invite
+                </span>
+              </li>
+              <li className="flex items-start gap-1.5">
+                <span className="font-bold shrink-0">2.</span>
+                <span>They log in at the app URL using Internet Identity</span>
+              </li>
+              <li className="flex items-start gap-1.5">
+                <span className="font-bold shrink-0">3.</span>
+                <span>On the Group Hub page, they enter this code to join</span>
+              </li>
+            </ol>
+          </div>
         </div>
       </div>
-      <button
-        type="button"
-        onClick={handleCopy}
-        className="flex items-center gap-2 rounded-lg border border-brand/30 bg-white px-4 py-2 font-mono text-xl font-bold tracking-widest text-brand hover:bg-brand-subtle transition-colors cursor-pointer"
-        title="Click to copy"
-        data-ocid="members.code.button"
-      >
-        {code}
-      </button>
     </div>
   );
 }
